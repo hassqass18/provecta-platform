@@ -13,9 +13,9 @@ export const metadata: Metadata = {
 const SECTION: React.CSSProperties = { padding: "clamp(4rem, 8vw, 7rem) 0" };
 
 const RESOURCES: Resource[] = [
-  { id: "revops-audit", type: "Assessment", title: "RevOps Audit", featured: true, href: "/login", actionLabel: "Start the assessment",
+  { id: "revops-audit", type: "Assessment", title: "RevOps Audit", featured: true, href: "/tools/revops-audit", actionLabel: "Start the assessment",
     desc: "39 questions across lead-to-deal, CRM, and reporting. Returns a scored gap map and the three fixes with the highest payback." },
-  { id: "ai-readiness", type: "Assessment", title: "AI Readiness Assessment", href: "/login", actionLabel: "Run the assessment",
+  { id: "ai-readiness", type: "Assessment", title: "AI Readiness Assessment", href: "/tools/ai-readiness", actionLabel: "Run the assessment",
     desc: "Score where AI removes manual work across your operations — not where it adds another chatbot. Get a readiness band and a sequenced rollout." },
   { id: "os-scorecard", type: "Assessment", title: "Operating-System Health Scorecard", href: "/login", actionLabel: "Run the scorecard",
     desc: "Rate each function against a 5-level maturity model. Get one operating-system score and a sequenced 90-day roadmap." },
