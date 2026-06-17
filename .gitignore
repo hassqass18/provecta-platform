@@ -1,0 +1,29 @@
+# dependencies
+/node_modules
+/.pnp
+.pnp.*
+
+# next
+/.next/
+/out/
+next-env.d.ts
+
+# production
+/build
+
+# env & secrets
+.env
+.env*.local
+ADMIN-CREDENTIALS.local.md
+
+# prisma local db
+prisma/dev.db
+prisma/dev.db-journal
+*.db
+
+# misc
+.DS_Store
+*.pem
+npm-debug.log*
+.vercel
+*.tsbuildinfo

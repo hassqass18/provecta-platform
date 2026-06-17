@@ -1,0 +1,386 @@
+// Provecta Platform — foundation schema.
+// DEV: SQLite (keyless, file-based) — status fields are String + app-layer
+// validation (SQLite has no native enums). PROD: port to Neon Postgres with
+// native enums + Row-Level Security (see Implementation Plan §0 / §6).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ── Tenancy & identity ────────────────────────────────────────────────
+model Tenant {
+  id          String       @id @default(cuid())
+  name        String
+  slug        String       @unique
+  type        String       @default("CLIENT") // CLIENT | INTERNAL
+  isDemo      Boolean      @default(false)
+  logoUrl     String?
+  createdAt   DateTime     @default(now())
+  users       User[]
+  engagements Engagement[]
+  documents   Document[]
+  invoices    Invoice[]
+  tickets     Ticket[]
+}
+
+model User {
+  id            String         @id @default(cuid())
+  email         String         @unique
+  name          String?
+  passwordHash  String
+  role          String         @default("CLIENT") // SUPER_ADMIN | ADMIN | STAFF | CLIENT
+  tenantId      String?
+  tenant        Tenant?        @relation(fields: [tenantId], references: [id])
+  createdAt     DateTime       @default(now())
+  assignedTasks Task[]
+  auditLogs     AuditLog[]
+  notifications Notification[]
+}
+
+// ── Engagement spine ──────────────────────────────────────────────────
+model Engagement {
+  id            String        @id @default(cuid())
+  tenantId      String
+  tenant        Tenant        @relation(fields: [tenantId], references: [id])
+  name          String
+  code          String        @unique
+  status        String        @default("ACTIVE") // PROPOSED | ACTIVE | ON_HOLD | COMPLETED | CANCELLED
+  summary       String?
+  budgetMinor   Int           @default(0)
+  currency      String        @default("USD")
+  startDate     DateTime?
+  targetEndDate DateTime?
+  createdAt     DateTime      @default(now())
+  proposal      Proposal?
+  charter       Charter?
+  milestones    Milestone[]
+  tasks         Task[]
+  deliverables  Deliverable[]
+  documents     Document[]
+  invoices      Invoice[]
+  kpis          Kpi[]
+  slas          Sla[]
+  tickets       Ticket[]
+}
+
+model Proposal {
+  id           String     @id @default(cuid())
+  engagementId String     @unique
+  engagement   Engagement @relation(fields: [engagementId], references: [id])
+  status       String     @default("DRAFT") // DRAFT | SENT | APPROVED | DECLINED
+  amountMinor  Int        @default(0)
+  currency     String     @default("USD")
+  bodyMd       String?
+  sentAt       DateTime?
+  approvedAt   DateTime?
+  createdAt    DateTime   @default(now())
+}
+
+model Charter {
+  id              String     @id @default(cuid())
+  engagementId    String     @unique
+  engagement      Engagement @relation(fields: [engagementId], references: [id])
+  objectives      String?
+  scope           String?
+  outOfScope      String?
+  sponsor         String?
+  successCriteria String?
+  createdAt       DateTime   @default(now())
+}
+
+model Milestone {
+  id           String     @id @default(cuid())
+  engagementId String
+  engagement   Engagement @relation(fields: [engagementId], references: [id])
+  title        String
+  description  String?
+  status       String     @default("PENDING") // PENDING | IN_PROGRESS | COMPLETED | BLOCKED
+  dueDate      DateTime?
+  completedAt  DateTime?
+  orderIndex   Int        @default(0)
+  notifyClient Boolean    @default(true)
+  createdAt    DateTime   @default(now())
+  tasks        Task[]
+}
+
+model Task {
+  id           String     @id @default(cuid())
+  engagementId String
+  engagement   Engagement @relation(fields: [engagementId], references: [id])
+  milestoneId  String?
+  milestone    Milestone? @relation(fields: [milestoneId], references: [id])
+  title        String
+  status       String     @default("TODO") // TODO | IN_PROGRESS | DONE
+  priority     String     @default("MEDIUM") // LOW | MEDIUM | HIGH
+  assigneeId   String?
+  assignee     User?      @relation(fields: [assigneeId], references: [id])
+  dueDate      DateTime?
+  createdAt    DateTime   @default(now())
+}
+
+model Deliverable {
+  id           String     @id @default(cuid())
+  engagementId String
+  engagement   Engagement @relation(fields: [engagementId], references: [id])
+  title        String
+  version      String     @default("v1")
+  isFinal      Boolean    @default(false)
+  documentId   String?
+  createdAt    DateTime   @default(now())
+}
+
+// ── Document & media vault ────────────────────────────────────────────
+model Document {
+  id           String      @id @default(cuid())
+  tenantId     String
+  tenant       Tenant      @relation(fields: [tenantId], references: [id])
+  engagementId String?
+  engagement   Engagement? @relation(fields: [engagementId], references: [id])
+  name         String
+  kind         String      @default("DOCUMENT") // DOCUMENT | MEDIA | CONTRACT
+  version      Int         @default(1)
+  isFinal      Boolean     @default(false)
+  signed       Boolean     @default(false)
+  url          String?
+  sizeBytes    Int         @default(0)
+  createdAt    DateTime    @default(now())
+}
+
+// ── Money — invoices & payments (display mirror of the prod ledger) ────
+model Invoice {
+  id           String      @id @default(cuid())
+  tenantId     String
+  tenant       Tenant      @relation(fields: [tenantId], references: [id])
+  engagementId String?
+  engagement   Engagement? @relation(fields: [engagementId], references: [id])
+  number       String      @unique
+  status       String      @default("DRAFT") // DRAFT | SENT | PAID | OVERDUE | VOID
+  amountMinor  Int         @default(0)
+  currency     String      @default("USD")
+  method       String? // STRIPE | MPESA | WISE | MANUAL
+  issuedAt     DateTime?
+  dueAt        DateTime?
+  paidAt       DateTime?
+  createdAt    DateTime    @default(now())
+  payments     Payment[]
+}
+
+model Payment {
+  id          String   @id @default(cuid())
+  invoiceId   String
+  invoice     Invoice  @relation(fields: [invoiceId], references: [id])
+  amountMinor Int
+  currency    String   @default("USD")
+  method      String   @default("MANUAL")
+  providerRef String?
+  receivedAt  DateTime @default(now())
+}
+
+// ── Client dashboards: KPIs & SLAs ────────────────────────────────────
+model Kpi {
+  id           String     @id @default(cuid())
+  engagementId String
+  engagement   Engagement @relation(fields: [engagementId], references: [id])
+  label        String
+  value        Float
+  unit         String? // % | $ | count | days
+  target       Float?
+  trend        String? // UP | DOWN | FLAT
+  asOf         DateTime   @default(now())
+}
+
+model Sla {
+  id           String     @id @default(cuid())
+  engagementId String
+  engagement   Engagement @relation(fields: [engagementId], references: [id])
+  metric       String
+  target       String
+  actual       String?
+  status       String     @default("MEETING") // MEETING | AT_RISK | BREACHED
+}
+
+// ── Omnichannel ticketing + autonomy ──────────────────────────────────
+model Ticket {
+  id             String          @id @default(cuid())
+  tenantId       String
+  tenant         Tenant          @relation(fields: [tenantId], references: [id])
+  engagementId   String?
+  engagement     Engagement?     @relation(fields: [engagementId], references: [id])
+  subject        String
+  channel        String          @default("PORTAL") // PORTAL | WHATSAPP | SLACK | TELEGRAM | DISCORD | EMAIL
+  status         String          @default("OPEN") // OPEN | TRIAGED | IN_PROGRESS | RESOLVED | CLOSED
+  priority       String          @default("MEDIUM") // LOW | MEDIUM | HIGH
+  proposedAction String?
+  autonomyState  String          @default("SUGGEST") // SUGGEST | AUTO_WITH_REVIEW | AUTONOMOUS
+  createdAt      DateTime        @default(now())
+  messages       TicketMessage[]
+}
+
+model TicketMessage {
+  id        String   @id @default(cuid())
+  ticketId  String
+  ticket    Ticket   @relation(fields: [ticketId], references: [id])
+  author    String // CLIENT | AGENT | SYSTEM
+  body      String
+  createdAt DateTime @default(now())
+}
+
+// ── Audit & notifications ─────────────────────────────────────────────
+model AuditLog {
+  id        String   @id @default(cuid())
+  actorId   String?
+  actor     User?    @relation(fields: [actorId], references: [id])
+  action    String
+  entity    String
+  entityId  String?
+  meta      String?
+  createdAt DateTime @default(now())
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  type      String
+  body      String
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+
+// ══ Wave 2–4 (additive; scalar FKs, no back-relations — keeps migrations additive) ══
+
+// ── Brain layer & proposal-from-transcript ────────────────────────────
+model Transcript {
+  id           String   @id @default(cuid())
+  tenantId     String?
+  engagementId String?
+  title        String
+  body         String
+  source       String   @default("UPLOAD") // UPLOAD | DISCOVERY_CALL | EMAIL
+  createdAt    DateTime @default(now())
+}
+
+model BrainQuery {
+  id           String   @id @default(cuid())
+  engagementId String?
+  provider     String   @default("STUB") // STUB | AMB | BRRAIN
+  prompt       String
+  response     String
+  createdAt    DateTime @default(now())
+}
+
+// ── Double-entry ledger (display/source of truth for money) ───────────
+model LedgerAccount {
+  id        String   @id @default(cuid())
+  code      String   @unique
+  name      String
+  type      String // ASSET | LIABILITY | INCOME | EXPENSE | EQUITY
+  createdAt DateTime @default(now())
+}
+
+model JournalEntry {
+  id           String        @id @default(cuid())
+  date         DateTime      @default(now())
+  memo         String
+  engagementId String?
+  invoiceId    String?
+  source       String        @default("MANUAL") // MANUAL | INVOICE | PAYMENT | FEE
+  lines        JournalLine[]
+  createdAt    DateTime      @default(now())
+}
+
+model JournalLine {
+  id          String       @id @default(cuid())
+  entryId     String
+  entry       JournalEntry @relation(fields: [entryId], references: [id])
+  accountCode String
+  debitMinor  Int          @default(0)
+  creditMinor Int          @default(0)
+  currency    String       @default("USD")
+}
+
+// ── E-signature ───────────────────────────────────────────────────────
+model Envelope {
+  id           String    @id @default(cuid())
+  tenantId     String
+  engagementId String?
+  documentId   String?
+  title        String
+  signerName   String
+  signerEmail  String
+  status       String    @default("DRAFT") // DRAFT | SENT | SIGNED | DECLINED | WET_INK_REQUIRED
+  provider     String    @default("STUB") // STUB | DROPBOX_SIGN | DOCUSIGN
+  country      String    @default("US")
+  docType      String    @default("AGREEMENT")
+  wetInkUrl    String?
+  sentAt       DateTime?
+  completedAt  DateTime?
+  createdAt    DateTime  @default(now())
+}
+
+model JurisdictionPolicy {
+  id           String  @id @default(cuid())
+  country      String
+  docType      String
+  requireWetInk Boolean @default(false)
+  note         String?
+
+  @@unique([country, docType])
+}
+
+// ── Change management — ADKAR adoption scorecard ──────────────────────
+model AdoptionAssessment {
+  id            String   @id @default(cuid())
+  engagementId  String
+  stakeholder   String
+  awareness     Int      @default(3) // 1–5 each (ADKAR)
+  desire        Int      @default(3)
+  knowledge     Int      @default(3)
+  ability       Int      @default(3)
+  reinforcement Int      @default(3)
+  asOf          DateTime @default(now())
+}
+
+// ── Autonomy eval harness ─────────────────────────────────────────────
+model AutonomyPolicy {
+  id             String   @id @default(cuid())
+  actionCategory String   @unique
+  state          String   @default("SUGGEST") // SUGGEST | AUTO_WITH_REVIEW | AUTONOMOUS
+  riskClass      String   @default("REVERSIBLE") // REVERSIBLE | IRREVERSIBLE | REGULATED
+  approvedCount  Int      @default(0)
+  totalCount     Int      @default(0)
+  threshold      Int      @default(10)
+  updatedAt      DateTime @default(now())
+}
+
+// ── Public marketing — blog + portfolio (tenant-agnostic) ─────────────
+model BlogPost {
+  id          String    @id @default(cuid())
+  slug        String    @unique
+  title       String
+  excerpt     String
+  body        String
+  tags        String    @default("")
+  status      String    @default("PUBLISHED") // DRAFT | PUBLISHED
+  publishedAt DateTime  @default(now())
+  createdAt   DateTime  @default(now())
+}
+
+model PortfolioItem {
+  id        String   @id @default(cuid())
+  slug      String   @unique
+  name      String
+  client    String
+  summary   String
+  sector    String
+  location  String
+  year      Int
+  orderIndex Int     @default(0)
+  createdAt DateTime @default(now())
+}
