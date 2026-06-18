@@ -100,7 +100,9 @@ export async function getAllInvoices(f: Filter = {}) {
   });
 }
 
-// Client-facing: everything for one tenant's portal dashboard.
+// Client-facing projection — SANITIZED to client-safe data only.
+// (Confidentiality: clients must NOT see draft/internal documents, internal
+// ticket "proposed actions", or internal SYSTEM/agent-draft messages.)
 export async function getClientDashboard(tenantId: string) {
   const tenant = await prisma.tenant.findUnique({ where: { id: tenantId } });
   const engagement = await prisma.engagement.findFirst({
@@ -112,10 +114,15 @@ export async function getClientDashboard(tenantId: string) {
       kpis: true,
       slas: true,
       invoices: { orderBy: { createdAt: "desc" } },
-      documents: { orderBy: { createdAt: "desc" } },
-      tickets: { orderBy: { createdAt: "desc" }, include: { messages: true } },
+      documents: { where: { isFinal: true }, orderBy: { createdAt: "desc" } }, // finals only
+      tickets: {
+        orderBy: { createdAt: "desc" },
+        include: { messages: { where: { author: { not: "SYSTEM" } }, orderBy: { createdAt: "asc" } } }, // no internal drafts
+      },
     },
   });
+  // Strip the internal "proposed action" from anything client-visible.
+  if (engagement) engagement.tickets.forEach((t) => { t.proposedAction = null; });
   return { tenant, engagement };
 }
 
