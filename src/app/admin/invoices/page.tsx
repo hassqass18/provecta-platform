@@ -1,10 +1,12 @@
-import { getAllInvoices } from "@/server/data";
+import { getAllInvoices, getClients } from "@/server/data";
 import { markInvoicePaid } from "@/server/actions";
+import { createInvoice } from "@/server/crud";
 import { Badge, Card, CardHeader } from "@/components/ui";
+import { NewForm, AINPUT, ALABEL, ABTN } from "@/components/admin-form";
 import { INVOICE_STATUS, toneFor, money, shortDate } from "@/lib/types";
 
 export default async function InvoicesPage() {
-  const invoices = await getAllInvoices();
+  const [invoices, clients] = await Promise.all([getAllInvoices(), getClients()]);
   const total = invoices.reduce((s, i) => s + i.amountMinor, 0);
   const collected = invoices.filter((i) => i.status === "PAID").reduce((s, i) => s + i.amountMinor, 0);
 
@@ -59,6 +61,34 @@ export default async function InvoicesPage() {
             ))}
           </tbody>
         </table>
+        <NewForm label="New invoice">
+          <form action={createInvoice} className="grid gap-3 sm:grid-cols-2">
+            <div>
+              <label className={ALABEL}>Client *</label>
+              <select name="tenantId" required className={AINPUT} defaultValue="">
+                <option value="">Select client…</option>
+                {clients.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className={ALABEL}>Amount (USD) *</label>
+              <input name="amount" type="number" required className={AINPUT} placeholder="2100" />
+            </div>
+            <div>
+              <label className={ALABEL}>Due date</label>
+              <input name="dueAt" type="date" className={AINPUT} />
+            </div>
+            <div>
+              <label className={ALABEL}>Method</label>
+              <select name="method" className={AINPUT} defaultValue="STRIPE">
+                {["STRIPE", "MPESA", "WISE", "MANUAL"].map((m) => <option key={m}>{m}</option>)}
+              </select>
+            </div>
+            <div className="sm:col-span-2">
+              <button className={ABTN}>Create invoice</button>
+            </div>
+          </form>
+        </NewForm>
       </Card>
     </div>
   );

@@ -1,5 +1,7 @@
 import { getClients } from "@/server/data";
 import { Badge, Card, CardHeader } from "@/components/ui";
+import { NewForm, AINPUT, ABTN } from "@/components/admin-form";
+import { createClient } from "@/server/crud";
 
 export default async function ClientsPage() {
   const clients = await getClients();
@@ -32,6 +34,12 @@ export default async function ClientsPage() {
             ))}
           </tbody>
         </table>
+        <NewForm label="New client">
+          <form action={createClient} className="flex flex-wrap items-end gap-2">
+            <input name="name" required placeholder="Client / company name" className={`${AINPUT} max-w-xs`} />
+            <button className={ABTN}>Create client</button>
+          </form>
+        </NewForm>
       </Card>
     </div>
   );

@@ -1,7 +1,9 @@
 import { notFound } from "next/navigation";
 import { getEngagementDetail } from "@/server/data";
 import { advanceMilestone, setEngagementStatus } from "@/server/actions";
+import { addMilestone, addTask, addKpi, addSla, createInvoice, editEngagement } from "@/server/crud";
 import { Badge, Card, CardHeader, Stat } from "@/components/ui";
+import { NewForm, AINPUT, ALABEL, ABTN } from "@/components/admin-form";
 import {
   ENGAGEMENT_STATUS,
   MILESTONE_STATUS,
@@ -102,6 +104,15 @@ export default async function EngagementDetail({ params }: { params: Promise<{ i
             </li>
           ))}
         </ul>
+        <NewForm label="Add milestone">
+          <form action={addMilestone} className="grid gap-3 sm:grid-cols-3">
+            <input type="hidden" name="engagementId" value={e.id} />
+            <input name="title" required placeholder="Milestone title" className={`${AINPUT} sm:col-span-2`} />
+            <input name="dueDate" type="date" className={AINPUT} />
+            <input name="description" placeholder="Description (optional)" className={`${AINPUT} sm:col-span-2`} />
+            <button className={ABTN}>Add milestone</button>
+          </form>
+        </NewForm>
       </Card>
 
       <Card>
@@ -119,6 +130,20 @@ export default async function EngagementDetail({ params }: { params: Promise<{ i
             ))}
           </tbody>
         </table>
+        <NewForm label="Add task">
+          <form action={addTask} className="grid gap-3 sm:grid-cols-3">
+            <input type="hidden" name="engagementId" value={e.id} />
+            <input name="title" required placeholder="Task title" className={`${AINPUT} sm:col-span-2`} />
+            <select name="priority" className={AINPUT} defaultValue="MEDIUM">
+              {["LOW", "MEDIUM", "HIGH"].map((p) => <option key={p}>{p}</option>)}
+            </select>
+            <select name="milestoneId" className={`${AINPUT} sm:col-span-2`} defaultValue="">
+              <option value="">No milestone</option>
+              {e.milestones.map((m) => <option key={m.id} value={m.id}>{m.title}</option>)}
+            </select>
+            <button className={ABTN}>Add task</button>
+          </form>
+        </NewForm>
       </Card>
 
       <div className="grid gap-6 lg:grid-cols-2">
@@ -135,6 +160,15 @@ export default async function EngagementDetail({ params }: { params: Promise<{ i
               ))}
             </tbody>
           </table>
+          <NewForm label="Add invoice">
+            <form action={createInvoice} className="grid gap-3">
+              <input type="hidden" name="tenantId" value={e.tenantId} />
+              <input type="hidden" name="engagementId" value={e.id} />
+              <input name="amount" type="number" required placeholder="Amount (USD)" className={AINPUT} />
+              <input name="dueAt" type="date" className={AINPUT} />
+              <button className={ABTN}>Create invoice</button>
+            </form>
+          </NewForm>
         </Card>
         <Card>
           <CardHeader title="Documents" />
@@ -148,6 +182,69 @@ export default async function EngagementDetail({ params }: { params: Promise<{ i
           </ul>
         </Card>
       </div>
+
+      <div className="grid gap-6 lg:grid-cols-2">
+        <Card>
+          <CardHeader title="KPIs" />
+          <ul className="divide-y divide-slate-100">
+            {e.kpis.map((k) => (
+              <li key={k.id} className="flex justify-between px-5 py-2.5 text-sm">
+                <span className="text-slate-700">{k.label}</span>
+                <span className="font-medium text-slate-900">{k.value}{k.unit === "%" ? "%" : k.unit ? ` ${k.unit}` : ""}</span>
+              </li>
+            ))}
+          </ul>
+          <NewForm label="Add KPI">
+            <form action={addKpi} className="grid gap-3 sm:grid-cols-2">
+              <input type="hidden" name="engagementId" value={e.id} />
+              <input name="label" required placeholder="KPI label" className={`${AINPUT} sm:col-span-2`} />
+              <input name="value" type="number" required placeholder="Value" className={AINPUT} />
+              <input name="unit" placeholder="Unit (%, days, $)" className={AINPUT} />
+              <input name="target" type="number" placeholder="Target (optional)" className={`${AINPUT} sm:col-span-2`} />
+              <button className={`${ABTN} sm:col-span-2`}>Add KPI</button>
+            </form>
+          </NewForm>
+        </Card>
+        <Card>
+          <CardHeader title="SLAs" />
+          <ul className="divide-y divide-slate-100">
+            {e.slas.map((s) => (
+              <li key={s.id} className="flex justify-between px-5 py-2.5 text-sm">
+                <span className="text-slate-700">{s.metric}</span>
+                <span className="text-slate-500">{s.target}</span>
+              </li>
+            ))}
+          </ul>
+          <NewForm label="Add SLA">
+            <form action={addSla} className="grid gap-3">
+              <input type="hidden" name="engagementId" value={e.id} />
+              <input name="metric" required placeholder="Metric (e.g. Ticket first response)" className={AINPUT} />
+              <input name="target" placeholder="Target (e.g. < 4h)" className={AINPUT} />
+              <button className={ABTN}>Add SLA</button>
+            </form>
+          </NewForm>
+        </Card>
+      </div>
+
+      <Card>
+        <CardHeader title="Edit engagement" />
+        <form action={editEngagement} className="grid gap-3 p-5 sm:grid-cols-2">
+          <input type="hidden" name="id" value={e.id} />
+          <div>
+            <label className={ALABEL}>Name</label>
+            <input name="name" defaultValue={e.name} className={AINPUT} />
+          </div>
+          <div>
+            <label className={ALABEL}>Budget (USD)</label>
+            <input name="budget" type="number" defaultValue={e.budgetMinor / 100} className={AINPUT} />
+          </div>
+          <div className="sm:col-span-2">
+            <label className={ALABEL}>Summary</label>
+            <input name="summary" defaultValue={e.summary ?? ""} className={AINPUT} />
+          </div>
+          <button className={`${ABTN} sm:col-span-2`}>Save changes</button>
+        </form>
+      </Card>
     </div>
   );
 }

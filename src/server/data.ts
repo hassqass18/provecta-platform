@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/db";
 
 export async function getAdminOverview() {
-  const [tenants, engagements, openTickets, invoices, milestones] = await Promise.all([
+  const [tenants, engagements, openTickets, invoices, milestones, recentActivity, tickets] = await Promise.all([
     prisma.tenant.count({ where: { type: "CLIENT" } }),
     prisma.engagement.findMany({
       include: { tenant: true, _count: { select: { milestones: true, tickets: true } } },
@@ -10,12 +10,21 @@ export async function getAdminOverview() {
     prisma.ticket.count({ where: { status: { in: ["OPEN", "TRIAGED", "IN_PROGRESS"] } } }),
     prisma.invoice.findMany(),
     prisma.milestone.findMany(),
+    prisma.auditLog.findMany({ include: { actor: true }, orderBy: { createdAt: "desc" }, take: 8 }),
+    prisma.ticket.findMany({ select: { status: true } }),
   ]);
 
   const activeEngagements = engagements.filter((e) => e.status === "ACTIVE").length;
   const billed = invoices.reduce((s, i) => s + i.amountMinor, 0);
   const collected = invoices.filter((i) => i.status === "PAID").reduce((s, i) => s + i.amountMinor, 0);
+  const outstanding = billed - collected;
   const milestonesDone = milestones.filter((m) => m.status === "COMPLETED").length;
+
+  const countBy = <T extends string>(items: { [k: string]: unknown }[], key: string) => {
+    const m = new Map<T, number>();
+    for (const it of items) m.set(it[key] as T, (m.get(it[key] as T) ?? 0) + 1);
+    return [...m.entries()].map(([label, value]) => ({ label, value }));
+  };
 
   return {
     tenants,
@@ -24,8 +33,12 @@ export async function getAdminOverview() {
     openTickets,
     billedMinor: billed,
     collectedMinor: collected,
+    outstandingMinor: outstanding,
     milestonesDone,
     milestonesTotal: milestones.length,
+    recentActivity,
+    engagementsByStatus: countBy(engagements, "status"),
+    ticketsByStatus: countBy(tickets, "status"),
   };
 }
 

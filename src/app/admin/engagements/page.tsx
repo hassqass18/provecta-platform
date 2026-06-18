@@ -1,10 +1,12 @@
 import Link from "next/link";
-import { getEngagements } from "@/server/data";
+import { getEngagements, getClients } from "@/server/data";
 import { Badge, Card, CardHeader } from "@/components/ui";
 import { ENGAGEMENT_STATUS, toneFor, money, shortDate } from "@/lib/types";
+import { NewForm, AINPUT, ALABEL, ABTN } from "@/components/admin-form";
+import { createEngagement } from "@/server/crud";
 
 export default async function EngagementsPage() {
-  const engagements = await getEngagements();
+  const [engagements, clients] = await Promise.all([getEngagements(), getClients()]);
   return (
     <div className="space-y-6">
       <h1 className="text-xl font-bold text-slate-900">Engagements</h1>
@@ -36,6 +38,36 @@ export default async function EngagementsPage() {
             ))}
           </tbody>
         </table>
+        <NewForm label="New engagement">
+          <form action={createEngagement} className="grid gap-3 sm:grid-cols-2">
+            <div>
+              <label className={ALABEL}>Client *</label>
+              <select name="tenantId" required className={AINPUT} defaultValue="">
+                <option value="">Select client…</option>
+                {clients.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className={ALABEL}>Engagement name *</label>
+              <input name="name" required className={AINPUT} placeholder="RevOps Build" />
+            </div>
+            <div>
+              <label className={ALABEL}>Budget (USD)</label>
+              <input name="budget" type="number" className={AINPUT} placeholder="42000" />
+            </div>
+            <div>
+              <label className={ALABEL}>Target end date</label>
+              <input name="targetEndDate" type="date" className={AINPUT} />
+            </div>
+            <div className="sm:col-span-2">
+              <label className={ALABEL}>Objectives (creates the charter)</label>
+              <input name="objectives" className={AINPUT} placeholder="What does this engagement achieve?" />
+            </div>
+            <div className="sm:col-span-2">
+              <button className={ABTN}>Create engagement</button>
+            </div>
+          </form>
+        </NewForm>
       </Card>
     </div>
   );

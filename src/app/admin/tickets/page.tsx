@@ -1,10 +1,12 @@
-import { getAllTickets } from "@/server/data";
+import { getAllTickets, getClients } from "@/server/data";
 import { approveTicketAction, setTicketStatus } from "@/server/actions";
+import { createTicketAdmin } from "@/server/crud";
 import { Badge, Card, CardHeader } from "@/components/ui";
+import { NewForm, AINPUT, ALABEL, ABTN } from "@/components/admin-form";
 import { TICKET_STATUS, AUTONOMY_STATE, toneFor } from "@/lib/types";
 
 export default async function TicketsPage() {
-  const tickets = await getAllTickets();
+  const [tickets, clients] = await Promise.all([getAllTickets(), getClients()]);
   return (
     <div className="space-y-6">
       <div>
@@ -14,6 +16,40 @@ export default async function TicketsPage() {
           proposes an action; you approve until it earns autonomy.
         </p>
       </div>
+
+      <Card>
+        <CardHeader title="Raise a ticket" />
+        <NewForm label="New ticket">
+          <form action={createTicketAdmin} className="grid gap-3 sm:grid-cols-2">
+            <div>
+              <label className={ALABEL}>Client *</label>
+              <select name="tenantId" required className={AINPUT} defaultValue="">
+                <option value="">Select client…</option>
+                {clients.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className={ALABEL}>Channel</label>
+              <select name="channel" className={AINPUT} defaultValue="PORTAL">
+                {["PORTAL", "WHATSAPP", "SLACK", "TELEGRAM", "DISCORD", "EMAIL"].map((c) => <option key={c}>{c}</option>)}
+              </select>
+            </div>
+            <div className="sm:col-span-2">
+              <label className={ALABEL}>Subject *</label>
+              <input name="subject" required className={AINPUT} placeholder="What does the client need?" />
+            </div>
+            <div>
+              <label className={ALABEL}>Priority</label>
+              <select name="priority" className={AINPUT} defaultValue="MEDIUM">
+                {["LOW", "MEDIUM", "HIGH"].map((p) => <option key={p}>{p}</option>)}
+              </select>
+            </div>
+            <div className="flex items-end">
+              <button className={ABTN}>Create ticket</button>
+            </div>
+          </form>
+        </NewForm>
+      </Card>
 
       <div className="space-y-4">
         {tickets.map((t) => (
