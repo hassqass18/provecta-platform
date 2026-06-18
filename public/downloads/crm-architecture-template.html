@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>CRM Architecture Template — Provecta Group</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+  :root { --black:#000; --ink:#1d1d1f; --blue:#0071e3; --line:rgba(0,0,0,.1); --muted:rgba(0,0,0,.56); }
+  * { box-sizing:border-box; }
+  body { font-family:'Inter',-apple-system,sans-serif; color:var(--ink); margin:0; background:#f5f5f7; line-height:1.55; }
+  .doc { max-width:820px; margin:0 auto; background:#fff; }
+  header { background:var(--black); color:#fff; padding:36px 48px; display:flex; align-items:center; gap:14px; }
+  header img { height:34px; width:34px; border-radius:7px; }
+  header .t { font-weight:600; font-size:.8rem; letter-spacing:-.01em; }
+  header .t span { opacity:.6; font-weight:400; }
+  main { padding:40px 48px 56px; }
+  h1 { font-size:1.9rem; font-weight:700; letter-spacing:-.02em; margin:0 0 4px; }
+  .eyebrow { color:var(--blue); font-weight:600; font-size:.72rem; letter-spacing:.08em; text-transform:uppercase; }
+  h2 { font-size:1.15rem; font-weight:600; margin:32px 0 10px; }
+  p { color:var(--muted); }
+  table { width:100%; border-collapse:collapse; margin:8px 0; font-size:.92rem; }
+  th, td { text-align:left; padding:8px 10px; border-bottom:1px solid var(--line); vertical-align:top; }
+  th { color:var(--ink); font-weight:600; background:#f5f5f7; }
+  ol, ul { color:var(--muted); padding-left:20px; }
+  li { margin:4px 0; }
+  footer { border-top:1px solid var(--line); padding:20px 48px; color:var(--muted); font-size:.8rem; display:flex; justify-content:space-between; }
+  footer a { color:var(--blue); text-decoration:none; }
+  @media print { body{background:#fff;} .doc{max-width:none;} }
+</style>
+</head>
+<body>
+<div class="doc">
+  <header>
+    <img src="https://www.pgco.world/provecta-logo.png" alt="Provecta Group" />
+    <div class="t">Provecta <span>Group</span></div>
+  </header>
+  <main>
+    <div class="eyebrow">Template</div>
+    <h1>CRM Architecture Template</h1>
+    <p>The field, stage, and automation structure behind Provecta's client CRM builds. Use it to architect — or audit — your own. Free to use; have us implement it at <a href="https://www.pgco.world">pgco.world</a>.</p>
+
+    <h2>1 · Lead object — core fields</h2>
+    <table>
+      <tr><th>Field</th><th>Type</th><th>Why it exists</th></tr>
+      <tr><td>Lead Source</td><td>Picklist</td><td>Attribution; the #1 field teams skip</td></tr>
+      <tr><td>Lead Source Detail</td><td>Text</td><td>Campaign / referrer specificity</td></tr>
+      <tr><td>Lead Score</td><td>Number</td><td>Fit × intent, recomputed on change</td></tr>
+      <tr><td>Lifecycle Stage</td><td>Picklist</td><td>Subscriber → Lead → MQL → SQL → Opp</td></tr>
+      <tr><td>Owner</td><td>User</td><td>Single accountable rep</td></tr>
+      <tr><td>Routing Status</td><td>Picklist</td><td>Unassigned / Assigned / SLA-breached</td></tr>
+    </table>
+
+    <h2>2 · Pipeline stages (lead-to-deal)</h2>
+    <ol>
+      <li><b>Qualification</b> — fit confirmed, owner assigned (SLA: &lt; 5 min to first touch)</li>
+      <li><b>Discovery</b> — pain quantified, decision process mapped</li>
+      <li><b>Proposal</b> — scoped, sent, tracked</li>
+      <li><b>Negotiation</b> — terms, redlines, approvals</li>
+      <li><b>Closed Won / Closed Lost</b> — reason code required on both</li>
+    </ol>
+
+    <h2>3 · Automation rules (the high-payback five)</h2>
+    <ol>
+      <li>Web-form → create Lead → score → route to owner + instant notify.</li>
+      <li>Stage change → timestamp + required-field gate (no skipping).</li>
+      <li>No activity in N days → task to owner + manager visibility.</li>
+      <li>Closed Won → create onboarding project + handoff checklist.</li>
+      <li>Closed Lost → reason code → nurture sequence by reason.</li>
+    </ol>
+
+    <h2>4 · Reporting (the four leadership actually uses)</h2>
+    <ul>
+      <li>Pipeline coverage (3–4× target by stage)</li>
+      <li>Speed-to-lead (median minutes to first touch)</li>
+      <li>Stage conversion + drop-off (where revenue leaks)</li>
+      <li>Win rate by source / segment</li>
+    </ul>
+  </main>
+  <footer>
+    <span>© 2026 Provecta Group. A Genius Co company.</span>
+    <a href="https://www.pgco.world">pgco.world · Built on bRRAIn</a>
+  </footer>
+</div>
+</body>
+</html>

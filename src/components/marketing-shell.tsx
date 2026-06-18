@@ -2,10 +2,7 @@ import type { ReactNode } from "react";
 import { HamburgerNav, type NavLink, type NavAction } from "./hamburger-nav";
 
 const NAV: NavLink[] = [
-  { href: "/#tools", label: "Tools & Resources" },
-  { href: "/#tools", label: "Assessments" },
-  { href: "/#tools", label: "Calculators" },
-  { href: "/#tools", label: "Templates & Playbooks" },
+  { href: "/#library", label: "Tools & Resources" },
   { href: "/#what-we-do", label: "What We Do" },
   { href: "/portfolio", label: "Our Work" },
   { href: "/blog", label: "Insights" },
@@ -26,7 +23,7 @@ export function MarketingShell({ children }: { children: ReactNode }) {
         <div className="pgcontainer" style={{ padding: "3rem 1.5rem", textAlign: "center" }}>
           <div style={{ color: "#fff", fontWeight: 600 }}>Provecta Group — Business Operations on bRRAIn</div>
           <p style={{ color: "var(--text-white-secondary)", marginTop: "0.5rem", fontSize: "0.9rem" }}>
-            © 2026 Provecta Group. The first Business Operations firm built on bRRAIn.
+            © 2026 Provecta Group. A Genius Co company.
           </p>
           <a
             href="https://brrain.io/architecture?ref=957c790577"

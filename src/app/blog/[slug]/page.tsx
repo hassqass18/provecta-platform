@@ -28,7 +28,11 @@ export default async function BlogPost({ params }: { params: Promise<{ slug: str
         <div className="mt-6 text-xs uppercase tracking-wide text-slate-400">{shortDate(post.publishedAt)}</div>
         <h1 className="mt-1 text-3xl font-bold text-slate-900">{post.title}</h1>
         <p className="mt-4 text-lg text-slate-600">{post.excerpt}</p>
-        <div className="prose mt-8 whitespace-pre-wrap text-slate-700">{post.body}</div>
+        <div className="mt-8 space-y-4 text-[1.05rem] leading-relaxed text-slate-700">
+          {post.body.split("\n\n").map((para, i) => (
+            <p key={i}>{para}</p>
+          ))}
+        </div>
       </article>
     </MarketingShell>
   );

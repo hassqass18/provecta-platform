@@ -17,18 +17,18 @@ const RESOURCES: Resource[] = [
     desc: "39 questions across lead-to-deal, CRM, and reporting. Returns a scored gap map and the three fixes with the highest payback." },
   { id: "ai-readiness", type: "Assessment", title: "AI Readiness Assessment", href: "/tools/ai-readiness", actionLabel: "Run the assessment",
     desc: "Score where AI removes manual work across your operations — not where it adds another chatbot. Get a readiness band and a sequenced rollout." },
-  { id: "os-scorecard", type: "Assessment", title: "Operating-System Health Scorecard", href: "/login", actionLabel: "Run the scorecard",
+  { id: "os-scorecard", type: "Assessment", title: "Operating-System Health Scorecard", href: "/tools/os-health", actionLabel: "Run the scorecard",
     desc: "Rate each function against a 5-level maturity model. Get one operating-system score and a sequenced 90-day roadmap." },
-  { id: "rev-leak", type: "Calculator", title: "Revenue-Leakage Calculator", href: "/login", actionLabel: "Open the calculator",
+  { id: "rev-leak", type: "Calculator", title: "Revenue-Leakage Calculator", href: "/tools/revenue-leakage", actionLabel: "Open the calculator",
     desc: "Enter your funnel volumes and conversion rates. See the dollars dropping out between lead and closed deal, stage by stage." },
-  { id: "ops-drag", type: "Calculator", title: "Operations Drag Estimator", href: "/login", actionLabel: "Open the calculator",
+  { id: "ops-drag", type: "Calculator", title: "Operations Drag Estimator", href: "/tools/operations-drag", actionLabel: "Open the calculator",
     desc: "Estimate the hours per month your team loses to manual work — and what reclaiming them is worth at your loaded cost." },
-  { id: "crm-template", type: "Template", title: "CRM Architecture Template", href: "/downloads/crm-architecture-template.md", actionLabel: "Download free", download: true, free: true,
+  { id: "crm-template", type: "Template", title: "CRM Architecture Template", href: "/downloads/crm-architecture-template.html", actionLabel: "Download free", download: true, free: true,
     desc: "The field, stage, and automation structure behind our client CRM builds. Download it, or have us implement it.",
     related: { label: "The single source of truth services firms miss", href: "/blog/single-source-of-truth-for-services-firms" } },
-  { id: "os-onepager", type: "Template", title: "Operating-System One-Pager", href: "/downloads/operating-system-one-pager.md", actionLabel: "Download free", download: true, free: true,
+  { id: "os-onepager", type: "Template", title: "Operating-System One-Pager", href: "/downloads/operating-system-one-pager.html", actionLabel: "Download free", download: true, free: true,
     desc: "A single-page canvas mapping engagements, projects, money, and support into one source of truth — the first artifact we build in every engagement." },
-  { id: "gtm-playbook", type: "Playbook", title: "GTM & Sales-Process Playbook", href: "/downloads/gtm-sales-process-playbook.md", actionLabel: "Download free", download: true, free: true,
+  { id: "gtm-playbook", type: "Playbook", title: "GTM & Sales-Process Playbook", href: "/downloads/gtm-sales-process-playbook.html", actionLabel: "Download free", download: true, free: true,
     desc: "The sales-process architecture we deploy on engagements, written as a step-by-step playbook you can run yourself.",
     related: { label: "Why we became the first Business Ops firm on bRRAIn", href: "/blog/first-business-operations-firm-on-brrain" } },
 ];
@@ -63,8 +63,28 @@ export default async function Landing() {
   }));
   const resources = [...RESOURCES, ...insightResources];
 
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "Organization",
+        name: "Provecta Group",
+        url: "https://www.pgco.world",
+        logo: "https://www.pgco.world/provecta-logo.png",
+        description: "Business operations firm and resource platform — assessments, calculators, templates, and playbooks for operational efficiency and revenue growth, built on bRRAIn.",
+        parentOrganization: { "@type": "Organization", name: "Genius Co" },
+      },
+      {
+        "@type": "WebSite",
+        name: "Provecta Group",
+        url: "https://www.pgco.world",
+      },
+    ],
+  };
+
   return (
     <MarketingShell>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
       {/* 1 — Hero (dark) */}
       <section className="hero">
         <div className="hero__grid" />

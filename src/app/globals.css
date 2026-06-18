@@ -93,7 +93,9 @@ a { color: inherit; text-decoration: none; }
   opacity: 0; pointer-events: none; transition: opacity 0.3s ease;
 }
 .navmobile.open { opacity: 1; pointer-events: all; }
-.navmobile a { font-size: 1.5rem; font-weight: 600; color: var(--white); letter-spacing: -0.02em; }
+.navmobile { gap: 1.1rem; padding: 1rem; }
+.navmobile a { font-size: clamp(1.05rem, 4.5vw, 1.3rem); font-weight: 600; color: var(--white); letter-spacing: -0.02em; }
+@media (min-width: 768px) { .navmobile { gap: 1.4rem; } .navmobile a { font-size: 1.35rem; } }
 .navmobile a:hover { color: var(--bright-blue); }
 .navmobile__close { position: absolute; top: 1.2rem; right: 1.5rem; background: none; border: none; cursor: pointer; font-size: 1.6rem; color: rgba(255, 255, 255, 0.6); }
 
@@ -158,3 +160,7 @@ a { color: inherit; text-decoration: none; }
 .appdark .hover\:bg-slate-50:hover { background-color: rgba(255, 255, 255, 0.05); }
 .appdark .shadow-sm { box-shadow: none; }
 .appdark .text-\[var\(--color-brand\)\] { color: #2997ff; }
+
+/* Portal mobile: tables scroll horizontally instead of squishing/breaking. */
+.appdark th, .appdark td { white-space: nowrap; }
+.appdark main { overflow-x: hidden; }
