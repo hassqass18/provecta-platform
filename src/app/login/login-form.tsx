@@ -29,7 +29,7 @@ export function LoginForm() {
       <form
         onSubmit={(ev) => {
           ev.preventDefault();
-          login(email, password, "/");
+          login(email, password, "/go");
         }}
         className="space-y-3"
       >

@@ -42,6 +42,8 @@ export function HamburgerNav({
       <nav className="pgnav">
         <div className="pgnav__inner">
           <Link href="/" className="pgnav__logo" onClick={close}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/provecta-logo.png" alt="Provecta Group" />
             Provecta <span>{brand}</span>
           </Link>
           <button className="hamburger" aria-label="Open menu" aria-expanded={open} onClick={() => setOpen(true)}>
