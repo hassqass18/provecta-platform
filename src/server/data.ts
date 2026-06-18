@@ -42,16 +42,23 @@ export async function getAdminOverview() {
   };
 }
 
-export async function getClients() {
+type Filter = { q?: string; status?: string; sort?: string };
+const like = (q?: string) => (q ? { contains: q, mode: "insensitive" as const } : undefined);
+
+export async function getClients(f: Filter = {}) {
   return prisma.tenant.findMany({
-    where: { type: "CLIENT" },
+    where: { type: "CLIENT", name: like(f.q) },
     include: { _count: { select: { engagements: true, users: true, tickets: true } } },
     orderBy: { name: "asc" },
   });
 }
 
-export async function getEngagements() {
+export async function getEngagements(f: Filter = {}) {
   return prisma.engagement.findMany({
+    where: {
+      status: f.status || undefined,
+      ...(f.q ? { OR: [{ name: like(f.q) }, { code: like(f.q) }] } : {}),
+    },
     include: { tenant: true, _count: { select: { milestones: true, tasks: true } } },
     orderBy: { createdAt: "desc" },
   });
@@ -75,17 +82,21 @@ export async function getEngagementDetail(id: string) {
   });
 }
 
-export async function getAllTickets() {
+export async function getAllTickets(f: Filter = {}) {
   return prisma.ticket.findMany({
+    where: { status: f.status || undefined, subject: like(f.q) },
     include: { tenant: true, engagement: true, messages: { orderBy: { createdAt: "asc" } } },
     orderBy: { createdAt: "desc" },
   });
 }
 
-export async function getAllInvoices() {
+export async function getAllInvoices(f: Filter = {}) {
+  const orderBy =
+    f.sort === "amount" ? { amountMinor: "desc" as const } : f.sort === "due" ? { dueAt: "asc" as const } : { createdAt: "desc" as const };
   return prisma.invoice.findMany({
+    where: { status: f.status || undefined, number: like(f.q) },
     include: { tenant: true, engagement: true, payments: true },
-    orderBy: { createdAt: "desc" },
+    orderBy,
   });
 }
 

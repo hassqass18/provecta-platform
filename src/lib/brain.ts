@@ -37,6 +37,25 @@ function stubAnswer(prompt: string): string {
   return `Grounded answer (local brain): ${prompt.slice(0, 140)}…`;
 }
 
+// Draft a support-ticket reply (gated: bRRAIn later; templated stub now).
+export async function draftReply(
+  subject: string,
+  lastMessage: string,
+  opts?: { engagementId?: string }
+): Promise<string> {
+  const provider = brainProvider();
+  const response = stubReply(subject, lastMessage);
+  await prisma.brainQuery.create({
+    data: { prompt: `Draft reply: ${subject}`, response, provider, engagementId: opts?.engagementId },
+  });
+  return response;
+}
+
+function stubReply(subject: string, lastMessage: string): string {
+  const ref = lastMessage ? ` On your note — "${lastMessage.slice(0, 80)}" — ` : " ";
+  return `Hi, thanks for reaching out about "${subject}". We've logged this and a Provecta specialist is reviewing it now.${ref}we'll follow up with concrete next steps within one business day. — Provecta Group`;
+}
+
 // Proposal-from-transcript: parse a discovery transcript into a structured
 // proposal draft. The transcript idea — record the call, brain drafts a proposal.
 export function proposalFromTranscript(title: string, transcript: string): {

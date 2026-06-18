@@ -3,13 +3,17 @@ import { getEngagements, getClients } from "@/server/data";
 import { Badge, Card, CardHeader } from "@/components/ui";
 import { ENGAGEMENT_STATUS, toneFor, money, shortDate } from "@/lib/types";
 import { NewForm, AINPUT, ALABEL, ABTN } from "@/components/admin-form";
+import { FilterBar } from "@/components/filter-bar";
 import { createEngagement } from "@/server/crud";
 
-export default async function EngagementsPage() {
-  const [engagements, clients] = await Promise.all([getEngagements(), getClients()]);
+export default async function EngagementsPage({ searchParams }: { searchParams: Promise<{ q?: string; status?: string }> }) {
+  const sp = await searchParams;
+  const [engagements, clients] = await Promise.all([getEngagements(sp), getClients()]);
   return (
     <div className="space-y-6">
       <h1 className="text-xl font-bold text-slate-900">Engagements</h1>
+      <FilterBar basePath="/admin/engagements" q={sp.q} activeStatus={sp.status} placeholder="Search engagements…"
+        statuses={["PROPOSED", "ACTIVE", "ON_HOLD", "COMPLETED", "CANCELLED"]} />
       <Card>
         <CardHeader title={`${engagements.length} engagements`} />
         <table className="w-full text-sm">

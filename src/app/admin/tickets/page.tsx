@@ -1,12 +1,14 @@
 import { getAllTickets, getClients } from "@/server/data";
-import { approveTicketAction, setTicketStatus } from "@/server/actions";
+import { approveTicketAction, setTicketStatus, aiDraftTicketReply } from "@/server/actions";
 import { createTicketAdmin } from "@/server/crud";
 import { Badge, Card, CardHeader } from "@/components/ui";
 import { NewForm, AINPUT, ALABEL, ABTN } from "@/components/admin-form";
+import { FilterBar } from "@/components/filter-bar";
 import { TICKET_STATUS, AUTONOMY_STATE, toneFor } from "@/lib/types";
 
-export default async function TicketsPage() {
-  const [tickets, clients] = await Promise.all([getAllTickets(), getClients()]);
+export default async function TicketsPage({ searchParams }: { searchParams: Promise<{ q?: string; status?: string }> }) {
+  const sp = await searchParams;
+  const [tickets, clients] = await Promise.all([getAllTickets(sp), getClients()]);
   return (
     <div className="space-y-6">
       <div>
@@ -16,6 +18,9 @@ export default async function TicketsPage() {
           proposes an action; you approve until it earns autonomy.
         </p>
       </div>
+
+      <FilterBar basePath="/admin/tickets" q={sp.q} activeStatus={sp.status} placeholder="Search tickets…"
+        statuses={["OPEN", "TRIAGED", "IN_PROGRESS", "RESOLVED", "CLOSED"]} />
 
       <Card>
         <CardHeader title="Raise a ticket" />
@@ -77,9 +82,17 @@ export default async function TicketsPage() {
               </div>
               <div className="flex items-center gap-2">
                 {t.status !== "RESOLVED" && t.status !== "CLOSED" ? (
+                  <form action={aiDraftTicketReply}>
+                    <input type="hidden" name="id" value={t.id} />
+                    <button className="rounded-lg border border-[#2997ff] px-3 py-1.5 text-xs font-semibold text-[#2997ff] hover:bg-[#2997ff]/10">
+                      Draft reply (bRRAIn)
+                    </button>
+                  </form>
+                ) : null}
+                {t.status !== "RESOLVED" && t.status !== "CLOSED" ? (
                   <form action={approveTicketAction}>
                     <input type="hidden" name="id" value={t.id} />
-                    <button className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:opacity-90">
+                    <button className="rounded-lg bg-[#0071e3] px-3 py-1.5 text-xs font-semibold text-white hover:opacity-90">
                       Approve action
                     </button>
                   </form>

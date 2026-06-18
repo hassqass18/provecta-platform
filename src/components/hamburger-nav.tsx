@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { signOut } from "next-auth/react";
+import { ThemeToggle } from "./theme-toggle";
 
 export type NavLink = { href: string; label: string; desc?: string; external?: boolean };
 export type NavAction = { href: string; label: string; variant?: "primary" | "outline" };
@@ -16,12 +17,14 @@ export function HamburgerNav({
   actions = [],
   showSignOut = false,
   user,
+  theme,
 }: {
   brand: string;
   items: NavLink[];
   actions?: NavAction[];
   showSignOut?: boolean;
   user?: { name?: string | null; email: string; role?: string };
+  theme?: "dark" | "light";
 }) {
   const [open, setOpen] = useState(false);
   const close = () => setOpen(false);
@@ -87,8 +90,9 @@ export function HamburgerNav({
           )
         )}
 
-        {(actions.length > 0 || showSignOut) ? (
+        {(actions.length > 0 || showSignOut || theme) ? (
           <div style={{ display: "flex", gap: "0.75rem", marginTop: "1rem", flexWrap: "wrap", justifyContent: "center" }}>
+            {theme ? <ThemeToggle theme={theme} /> : null}
             {actions.map((a) => (
               <Link
                 key={a.href + a.label}

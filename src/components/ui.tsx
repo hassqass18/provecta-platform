@@ -46,11 +46,11 @@ export function Stat({
   tone?: Tone;
 }) {
   const accent: Record<Tone, string> = {
-    neutral: "text-white",
-    info: "text-[#5ab0ff]",
-    success: "text-[#5ab0ff]",
-    warn: "text-white",
-    danger: "text-[#ff6961]",
+    neutral: "text-[#1d1d1f]",
+    info: "text-[#0071e3]",
+    success: "text-[#0071e3]",
+    warn: "text-[#1d1d1f]",
+    danger: "text-[#d70015]",
   };
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">

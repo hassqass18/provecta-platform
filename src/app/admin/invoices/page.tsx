@@ -3,10 +3,13 @@ import { markInvoicePaid } from "@/server/actions";
 import { createInvoice } from "@/server/crud";
 import { Badge, Card, CardHeader } from "@/components/ui";
 import { NewForm, AINPUT, ALABEL, ABTN } from "@/components/admin-form";
+import { FilterBar } from "@/components/filter-bar";
 import { INVOICE_STATUS, toneFor, money, shortDate } from "@/lib/types";
+import Link from "next/link";
 
-export default async function InvoicesPage() {
-  const [invoices, clients] = await Promise.all([getAllInvoices(), getClients()]);
+export default async function InvoicesPage({ searchParams }: { searchParams: Promise<{ q?: string; status?: string; sort?: string }> }) {
+  const sp = await searchParams;
+  const [invoices, clients] = await Promise.all([getAllInvoices(sp), getClients()]);
   const total = invoices.reduce((s, i) => s + i.amountMinor, 0);
   const collected = invoices.filter((i) => i.status === "PAID").reduce((s, i) => s + i.amountMinor, 0);
 
@@ -18,6 +21,26 @@ export default async function InvoicesPage() {
           One ledger for every intake, regardless of method. Billed {money(total)} · collected{" "}
           {money(collected)}.
         </p>
+      </div>
+
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <FilterBar basePath="/admin/invoices" q={sp.q} activeStatus={sp.status} placeholder="Search invoices…"
+          statuses={["DRAFT", "SENT", "PAID", "OVERDUE", "VOID"]} />
+        <div className="flex items-center gap-3 text-xs">
+          <span className="text-slate-500">Sort:</span>
+          {([["createdAt", "Newest"], ["amount", "Amount"], ["due", "Due date"]] as const).map(([k, l]) => {
+            const p = new URLSearchParams();
+            if (sp.q) p.set("q", sp.q);
+            if (sp.status) p.set("status", sp.status);
+            if (k !== "createdAt") p.set("sort", k);
+            const active = (sp.sort || "createdAt") === k;
+            return (
+              <Link key={k} href={`/admin/invoices${p.toString() ? `?${p}` : ""}`} className={active ? "font-semibold text-[#0071e3]" : "text-slate-500"}>
+                {l}
+              </Link>
+            );
+          })}
+        </div>
       </div>
 
       <Card>

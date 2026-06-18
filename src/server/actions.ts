@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
 import { requireAdmin, requireUser } from "@/lib/session";
 import { recordApproval } from "@/lib/autonomy";
+import { draftReply } from "@/lib/brain";
 
 function ticketCategory(channel: string, subject: string): string {
   if (/status|call|milestone|progress/i.test(subject)) return "milestone-status-reply";
@@ -32,6 +33,22 @@ export async function advanceMilestone(formData: FormData) {
     data: { status: next, completedAt: next === "COMPLETED" ? new Date() : null },
   });
   await audit(admin.id, "MILESTONE_ADVANCE", "Milestone", id, `${current.status}→${next}`);
+
+  // Milestone reached → notify the client (logged in the back office).
+  if (next === "COMPLETED") {
+    const eng = await prisma.engagement.findUnique({
+      where: { id: current.engagementId },
+      include: { tenant: { include: { users: true } } },
+    });
+    if (eng) {
+      for (const u of eng.tenant.users) {
+        await prisma.notification.create({
+          data: { userId: u.id, type: "MILESTONE", body: `Milestone "${current.title}" completed on ${eng.name}.` },
+        });
+      }
+      await audit(admin.id, "CLIENT_NOTIFY", "Engagement", eng.id, `milestone complete → ${eng.tenant.users.length} client user(s) notified`);
+    }
+  }
   revalidatePath(`/admin/engagements/${current.engagementId}`);
 }
 
@@ -66,6 +83,25 @@ export async function setTicketStatus(formData: FormData) {
   const status = String(formData.get("status"));
   await prisma.ticket.update({ where: { id }, data: { status } });
   await audit(admin.id, "TICKET_STATUS", "Ticket", id, status);
+  revalidatePath("/admin/tickets");
+}
+
+// bRRAIn drafts a reply for the ticket → admin reviews/approves it.
+export async function aiDraftTicketReply(formData: FormData) {
+  const admin = await requireAdmin();
+  const id = String(formData.get("id"));
+  const t = await prisma.ticket.findUnique({
+    where: { id },
+    include: { messages: { orderBy: { createdAt: "desc" }, take: 1 } },
+  });
+  if (!t) return;
+  const last = t.messages[0]?.body ?? "";
+  const draft = await draftReply(t.subject, last, { engagementId: t.engagementId ?? undefined });
+  await prisma.ticket.update({ where: { id }, data: { proposedAction: draft } });
+  await prisma.ticketMessage.create({
+    data: { ticketId: id, author: "SYSTEM", body: `bRRAIn drafted a reply (pending approval): ${draft}` },
+  });
+  await audit(admin.id, "AI_DRAFT_REPLY", "Ticket", id);
   revalidatePath("/admin/tickets");
 }
 
@@ -105,6 +141,19 @@ export async function createPortalTicket(formData: FormData) {
   if (body) {
     await prisma.ticketMessage.create({ data: { ticketId: ticket.id, author: "CLIENT", body } });
   }
+  // Notify the back office (logged) so stakeholders stay abreast.
+  const admins = await prisma.user.findMany({ where: { role: { in: ["SUPER_ADMIN", "ADMIN", "STAFF"] } } });
+  for (const a of admins) {
+    await prisma.notification.create({ data: { userId: a.id, type: "TICKET", body: `New portal ticket: "${subject}"` } });
+  }
   await audit(user.id, "TICKET_CREATE", "Ticket", ticket.id, "portal");
+  revalidatePath("/portal");
+}
+
+// Mark the current user's notifications read.
+export async function markAllRead() {
+  const user = await requireUser();
+  await prisma.notification.updateMany({ where: { userId: user.id, read: false }, data: { read: true } });
+  revalidatePath("/admin/notifications");
   revalidatePath("/portal");
 }

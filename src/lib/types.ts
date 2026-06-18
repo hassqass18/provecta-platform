@@ -6,14 +6,14 @@ export const ADMIN_ROLES: Role[] = ["SUPER_ADMIN", "ADMIN", "STAFF"];
 
 export type Tone = "neutral" | "info" | "success" | "warn" | "danger";
 
-// Apple-restrained palette on the dark portal (brief §5.7): blue is the only
-// saturated accent; red is the single exception, reserved strictly for danger.
+// Apple-restrained palette. Light defaults below; the .appdark scope in
+// globals.css overrides these arbitrary classes for the dark theme.
 export const TONE_CLASS: Record<Tone, string> = {
-  neutral: "bg-white/10 text-white border-white/15",
-  info: "bg-[#2997ff]/15 text-[#5ab0ff] border-[#2997ff]/30",
-  success: "bg-[#2997ff]/15 text-[#5ab0ff] border-[#2997ff]/30",
-  warn: "bg-white/10 text-white border-white/40",
-  danger: "bg-[#ff453a]/15 text-[#ff6961] border-[#ff453a]/35",
+  neutral: "bg-[#f5f5f7] text-[#1d1d1f] border-black/10",
+  info: "bg-[#0071e3]/10 text-[#0071e3] border-[#0071e3]/25",
+  success: "bg-[#0071e3]/[0.08] text-[#0066cc] border-[#0071e3]/25",
+  warn: "bg-[#f5f5f7] text-[#1d1d1f] border-[#1d1d1f]",
+  danger: "bg-[#ff3b30]/10 text-[#d70015] border-[#ff3b30]/25",
 };
 
 export const ENGAGEMENT_STATUS: Record<string, Tone> = {
