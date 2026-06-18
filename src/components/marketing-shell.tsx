@@ -23,7 +23,7 @@ export function MarketingShell({ children }: { children: ReactNode }) {
         <div className="pgcontainer" style={{ padding: "3rem 1.5rem", textAlign: "center" }}>
           <div style={{ color: "#fff", fontWeight: 600 }}>Provecta Group — Business Operations on bRRAIn</div>
           <p style={{ color: "var(--text-white-secondary)", marginTop: "0.5rem", fontSize: "0.9rem" }}>
-            © 2026 Provecta Group. A Genius Co company.
+            © 2026 Provecta Group, a Genius Co company.
           </p>
           <a
             href="https://brrain.io/architecture?ref=957c790577"
