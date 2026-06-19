@@ -1,4 +1,5 @@
 import { prisma, dbForTenant } from "@/lib/db";
+import { recomputeSnapshot } from "./dashboards/metrics";
 
 export async function getAdminOverview() {
   const [tenants, engagements, openTickets, invoices, milestones, recentActivity, tickets] = await Promise.all([
@@ -129,11 +130,23 @@ export async function getClientDashboardProjection(tenantId: string) {
 
   if (!raw) return { tenant, engagement: null };
 
+  // P2A: keep the O(1) snapshot live (bypass upsert; client reads the projection).
+  const snap = await recomputeSnapshot(raw.id);
+
   const engagement = {
     id: raw.id,
     name: raw.name,
     code: raw.code,
     status: raw.status,
+    snapshot: {
+      ragOverall: snap.ragOverall,
+      milestonesComplete: snap.milestonesComplete,
+      milestonesTotal: snap.milestonesTotal,
+      slaAttainmentPct: snap.slaAttainmentPct,
+      openTickets: snap.openTickets,
+      daysRemaining: snap.daysRemaining,
+      computedAt: snap.computedAt,
+    },
     startDate: raw.startDate,
     targetEndDate: raw.targetEndDate,
     budgetMinor: raw.budgetMinor,

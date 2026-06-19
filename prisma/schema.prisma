@@ -330,6 +330,20 @@ model ProjectTemplateKpi {
   unit        String?
 }
 
+// ── P2A: per-engagement metric snapshot (O(1) client dashboard read) ──
+model EngagementMetricSnapshot {
+  id                 String   @id @default(cuid())
+  engagementId       String   @unique
+  milestonesComplete Int      @default(0)
+  milestonesTotal    Int      @default(0)
+  budgetSpentMinor   Int      @default(0)
+  slaAttainmentPct   Int      @default(100)
+  openTickets        Int      @default(0)
+  daysRemaining      Int?
+  ragOverall         String   @default("GREEN") // GREEN | AMBER | RED
+  computedAt         DateTime @default(now())
+}
+
 // ── P1C: durable ingest/outbox jobs (system/admin only; accessed via bypass client) ──
 model IngestJob {
   id        String   @id @default(cuid())

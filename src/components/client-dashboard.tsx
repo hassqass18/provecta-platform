@@ -46,7 +46,10 @@ export function ClientDashboard({
           <h1 className="text-xl font-bold text-slate-900">{engagement.name}</h1>
           <p className="mt-1 text-sm text-slate-500">
             {tenant?.name} · {engagement.code} ·{" "}
-            <Badge tone={toneFor(ENGAGEMENT_STATUS, engagement.status)}>{engagement.status}</Badge>
+            <Badge tone={toneFor(ENGAGEMENT_STATUS, engagement.status)}>{engagement.status}</Badge>{" "}
+            <Badge tone={engagement.snapshot.ragOverall === "GREEN" ? "success" : engagement.snapshot.ragOverall === "AMBER" ? "warn" : "danger"}>
+              {engagement.snapshot.ragOverall}
+            </Badge>
           </p>
         </div>
         <div className="text-right text-sm text-slate-500">
@@ -153,7 +156,9 @@ export function ClientDashboard({
           {engagement.documents.map((d) => (
             <li key={d.id} className="flex items-center justify-between px-5 py-3">
               <div className="flex items-center gap-3">
-                <span className="text-sm text-slate-700">{d.name}</span>
+                <a href={`/portal/doc/${d.id}`} target="_blank" rel="noopener noreferrer" className="text-sm font-medium text-[var(--color-brand)] hover:underline">
+                  {d.name}
+                </a>
                 {d.isFinal ? <Badge tone="success">FINAL</Badge> : null}
                 {d.signed ? <Badge tone="info">SIGNED</Badge> : null}
               </div>
