@@ -21,6 +21,7 @@ model Tenant {
   type        String       @default("CLIENT") // CLIENT | INTERNAL
   isDemo      Boolean      @default(false)
   logoUrl     String?
+  brainFolder String?      @unique // P1A: maps this tenant to its folder under BrainRepo.pathPrefix
   createdAt   DateTime     @default(now())
   users       User[]
   engagements Engagement[]
@@ -147,12 +148,13 @@ model Document {
   name         String
   kind         String      @default("DOCUMENT") // DOCUMENT | MEDIA | CONTRACT
   version      Int         @default(1)
-  isFinal      Boolean     @default(false)
-  signed       Boolean     @default(false)
-  url          String?
-  sizeBytes    Int         @default(0)
-  source       String      @default("HUMAN") // P0-PROV: BRAIN | HUMAN | AGENT
-  createdAt    DateTime    @default(now())
+  isFinal       Boolean    @default(false)
+  signed        Boolean    @default(false)
+  clientVisible Boolean    @default(true) // P1A: brain-pulled finals land false until a human approves
+  url           String?
+  sizeBytes     Int        @default(0)
+  source        String     @default("HUMAN") // P0-PROV: BRAIN | HUMAN | AGENT
+  createdAt     DateTime   @default(now())
 }
 
 // ── Money — invoices & payments (display mirror of the prod ledger) ────
@@ -278,6 +280,24 @@ model BrainQuery {
   prompt       String
   response     String
   createdAt    DateTime @default(now())
+}
+
+// ── P1A: GitBrainSource — pull FINAL deliverables from the brain git repo ──
+model BrainRepo {
+  id              String    @id @default(cuid())
+  provider        String    @default("github")
+  owner           String
+  repo            String
+  branch          String    @default("main")
+  pathPrefix      String    @default("projects/staging") // client folders live under here
+  finalConvention String    @default("FINAL_DIR_OR_FRONTMATTER") // FINAL/ subdir OR `status: FINAL`
+  lastSyncedSha   String?
+  webhookSecret   String?
+  authRef         String? // name of the env var holding the read token (e.g. GITHUB_BRAIN_TOKEN)
+  lastSyncedAt    DateTime?
+  createdAt       DateTime  @default(now())
+
+  @@unique([owner, repo, branch])
 }
 
 // ── Double-entry ledger (display/source of truth for money) ───────────

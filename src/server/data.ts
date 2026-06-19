@@ -122,7 +122,7 @@ export async function getClientDashboardProjection(tenantId: string) {
       kpis: true,
       slas: true,
       invoices: { where: { status: { notIn: ["DRAFT", "VOID"] } }, orderBy: { createdAt: "desc" } },
-      documents: { where: { isFinal: true }, orderBy: { createdAt: "desc" } },
+      documents: { where: { isFinal: true, clientVisible: true }, orderBy: { createdAt: "desc" } },
       tickets: { orderBy: { createdAt: "desc" } },
     },
   });
