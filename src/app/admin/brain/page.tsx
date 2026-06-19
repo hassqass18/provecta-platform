@@ -1,14 +1,18 @@
 import { prisma } from "@/lib/db";
 import { brainProvider } from "@/lib/brain";
 import { createProposalFromTranscript } from "@/server/ops-actions";
+import { approveDocument } from "@/server/crud";
+import { getPendingBrainDocs } from "@/server/data";
 import { Badge, Card, CardHeader } from "@/components/ui";
+import { ABTN } from "@/components/admin-form";
 import { shortDate } from "@/lib/types";
 
 export default async function BrainPage() {
-  const [clients, queries, transcripts] = await Promise.all([
+  const [clients, queries, transcripts, pendingDocs] = await Promise.all([
     prisma.tenant.findMany({ where: { type: "CLIENT" }, orderBy: { name: "asc" } }),
     prisma.brainQuery.findMany({ orderBy: { createdAt: "desc" }, take: 8 }),
     prisma.transcript.findMany({ orderBy: { createdAt: "desc" }, take: 8 }),
+    getPendingBrainDocs(),
   ]);
   const provider = brainProvider();
 
@@ -49,6 +53,32 @@ export default async function BrainPage() {
             Draft proposal →
           </button>
         </form>
+      </Card>
+
+      <Card>
+        <CardHeader title={`Brain documents awaiting approval (${pendingDocs.length})`} />
+        <p className="px-5 pt-3 text-xs text-slate-500">
+          Pulled from the brain as FINAL but hidden from the client until you approve (client-approval finality).
+        </p>
+        <ul className="divide-y divide-slate-100">
+          {pendingDocs.map((d) => (
+            <li key={d.id} className="flex items-center justify-between px-5 py-3">
+              <div>
+                <div className="text-sm font-medium text-slate-800">{d.name}</div>
+                <div className="text-xs text-slate-500">
+                  {d.tenant.name} · <Badge tone="info">BRAIN</Badge> · {shortDate(d.createdAt)}
+                </div>
+              </div>
+              <form action={approveDocument}>
+                <input type="hidden" name="id" value={d.id} />
+                <button className={ABTN}>Approve for client</button>
+              </form>
+            </li>
+          ))}
+          {pendingDocs.length === 0 ? (
+            <li className="px-5 py-4 text-center text-sm text-slate-400">Nothing awaiting approval.</li>
+          ) : null}
+        </ul>
       </Card>
 
       <div className="grid gap-6 lg:grid-cols-2">

@@ -59,6 +59,7 @@ model Engagement {
   currency      String        @default("USD")
   startDate     DateTime?
   targetEndDate DateTime?
+  stagedFromTemplateKey String? // P1B: set when auto-staged from a ProjectTemplate
   createdAt     DateTime      @default(now())
   proposal      Proposal?
   charter       Charter?
@@ -70,6 +71,8 @@ model Engagement {
   kpis          Kpi[]
   slas          Sla[]
   tickets       Ticket[]
+
+  @@unique([tenantId, stagedFromTemplateKey]) // P1B: idempotent staging per tenant+template
 }
 
 model Proposal {
@@ -105,6 +108,7 @@ model Milestone {
   description  String?
   status       String     @default("PENDING") // PENDING | IN_PROGRESS | COMPLETED | BLOCKED
   dueDate      DateTime?
+  baselineDate DateTime?  // P1B: planned date from the template dayOffset (for RAG/SPI)
   completedAt  DateTime?
   orderIndex   Int        @default(0)
   notifyClient Boolean    @default(true)
@@ -300,6 +304,43 @@ model BrainRepo {
   createdAt       DateTime  @default(now())
 
   @@unique([owner, repo, branch])
+}
+
+// ── P1B: project-staging templates (firm-wide config; not tenant-scoped) ──
+model ProjectTemplate {
+  key       String   @id // e.g. "onboarding"
+  name      String
+  createdAt DateTime @default(now())
+}
+
+model ProjectTemplateMilestone {
+  id            String  @id @default(cuid())
+  templateKey   String
+  orderIndex    Int     @default(0)
+  dayOffset     Int     @default(0)
+  clientVisible Boolean @default(true)
+  title         String
+}
+
+model ProjectTemplateKpi {
+  id          String  @id @default(cuid())
+  templateKey String
+  label       String
+  target      Float?
+  unit        String?
+}
+
+// ── P1C: durable ingest/outbox jobs (system/admin only; accessed via bypass client) ──
+model IngestJob {
+  id        String   @id @default(cuid())
+  tenantId  String?
+  kind      String // PULL_FINALS | STAGE_PROJECT | GIT_SYNC
+  status    String   @default("PENDING") // PENDING | DONE | FAILED
+  payload   Json?
+  attempts  Int      @default(0)
+  lastError String?
+  runAt     DateTime @default(now())
+  createdAt DateTime @default(now())
 }
 
 // ── Double-entry ledger (display/source of truth for money) ───────────

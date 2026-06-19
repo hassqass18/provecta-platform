@@ -158,6 +158,15 @@ export async function getClientDashboardProjection(tenantId: string) {
   return { tenant, engagement };
 }
 
+// Admin: brain-pulled finals awaiting client-visibility approval (P1D).
+export async function getPendingBrainDocs() {
+  return prisma.document.findMany({
+    where: { source: "BRAIN", clientVisible: false },
+    include: { tenant: true },
+    orderBy: { createdAt: "desc" },
+  });
+}
+
 export async function getDemoTenantId(): Promise<string | null> {
   const demo = await prisma.tenant.findFirst({ where: { isDemo: true } });
   return demo?.id ?? null;
