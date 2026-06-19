@@ -3,7 +3,7 @@
  *   SMOKE_URL=https://pgco.world tsx scripts/smoke.ts
  * Slices append their own live assertions over time.
  */
-const BASE = process.env.SMOKE_URL ?? "https://pgco.world";
+const BASE = process.env.SMOKE_URL ?? "https://www.pgco.world"; // canonical host (apex 307s to www)
 
 let failures = 0;
 const ok = (m: string) => console.log(`  ok   ${m}`);
