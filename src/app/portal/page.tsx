@@ -1,5 +1,5 @@
 import { requireUser } from "@/lib/session";
-import { getClientDashboard } from "@/server/data";
+import { getClientDashboardProjection } from "@/server/data";
 import { ClientDashboard } from "@/components/client-dashboard";
 import { Card } from "@/components/ui";
 import { prisma } from "@/lib/db";
@@ -11,7 +11,7 @@ export default async function PortalPage() {
     return <Card className="p-8 text-center text-slate-500">No client workspace linked to this account.</Card>;
   }
   const [data, notifications] = await Promise.all([
-    getClientDashboard(user.tenantId),
+    getClientDashboardProjection(user.tenantId),
     prisma.notification.findMany({ where: { userId: user.id }, orderBy: { createdAt: "desc" }, take: 5 }),
   ]);
 

@@ -12,7 +12,7 @@ import {
 import { createPortalTicket } from "@/server/actions";
 
 type DashboardData = Awaited<
-  ReturnType<typeof import("@/server/data").getClientDashboard>
+  ReturnType<typeof import("@/server/data").getClientDashboardProjection>
 >;
 
 export function ClientDashboard({
