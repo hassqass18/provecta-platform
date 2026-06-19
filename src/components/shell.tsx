@@ -23,7 +23,7 @@ export async function Shell({
   const theme = (await cookies()).get("theme")?.value === "light" ? "light" : "dark";
   return (
     <div className={theme === "light" ? "applight" : "appdark"}>
-      <HamburgerNav brand={brand} items={nav} user={user} showSignOut theme={theme} />
+      <HamburgerNav brand={brand} items={nav} user={user} showSignOut theme={theme} drawer />
       <div style={{ position: "relative", zIndex: 1 }}>
         {banner}
         <main style={{ maxWidth: 1200, margin: "0 auto", padding: "1.5rem" }}>{children}</main>

@@ -99,6 +99,24 @@ a { color: inherit; text-decoration: none; }
 .navmobile a:hover { color: var(--bright-blue); }
 .navmobile__close { position: absolute; top: 1.2rem; right: 1.5rem; background: none; border: none; cursor: pointer; font-size: 1.6rem; color: rgba(255, 255, 255, 0.6); }
 
+/* Side-drawer variant (portal / back office) — Karibu-style: slides in from the
+   right, compact text-sm left-aligned items, dim backdrop. The landing keeps the
+   full-screen overlay above. */
+.navmobile__backdrop { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.5); z-index: 1000; opacity: 0; pointer-events: none; transition: opacity 0.25s ease; }
+.navmobile__backdrop.open { opacity: 1; pointer-events: all; }
+.navmobile--drawer {
+  inset: 0 0 0 auto; width: min(290px, 82vw); height: 100%;
+  background: rgba(18, 18, 20, 0.98); backdrop-filter: saturate(180%) blur(20px);
+  -webkit-backdrop-filter: saturate(180%) blur(20px); border-left: 1px solid rgba(255, 255, 255, 0.08);
+  align-items: stretch; justify-content: flex-start; gap: 0.1rem;
+  padding: 3.5rem 0.85rem 1.5rem; opacity: 1; pointer-events: none;
+  transform: translateX(100%); transition: transform 0.28s ease; overflow-y: auto;
+}
+.navmobile--drawer.open { transform: translateX(0); pointer-events: all; }
+.navmobile--drawer a { font-size: 0.875rem; font-weight: 500; text-align: left; color: var(--white); padding: 0.6rem 0.7rem; border-radius: 8px; letter-spacing: -0.01em; }
+.navmobile--drawer a:hover { background: rgba(255, 255, 255, 0.07); color: var(--white); }
+@media (min-width: 768px) { .navmobile--drawer a { font-size: 0.875rem; } }
+
 /* ── Layout helpers ── */
 .pgcontainer { max-width: 1080px; margin: 0 auto; padding: 0 1.5rem; }
 .section-dark { background: var(--black); color: var(--white); }

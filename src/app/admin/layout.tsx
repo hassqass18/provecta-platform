@@ -15,7 +15,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     { href: "/admin/invoices", label: "Invoices" },
     { href: "/admin/esign", label: "E-signature" },
     { href: "/admin/change", label: "Change (ADKAR)" },
-    { href: "/admin/client-view", label: "View as client (demo)" },
+    { href: "/admin/client-view", label: "View as client" },
   ];
   return (
     <Shell brand="Back Office" nav={nav} user={user}>
