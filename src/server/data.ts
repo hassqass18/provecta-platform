@@ -100,29 +100,58 @@ export async function getAllInvoices(f: Filter = {}) {
   });
 }
 
-// Client-facing projection — SANITIZED to client-safe data only.
-// (Confidentiality: clients must NOT see draft/internal documents, internal
-// ticket "proposed actions", or internal SYSTEM/agent-draft messages.)
-export async function getClientDashboard(tenantId: string) {
-  const tenant = await prisma.tenant.findUnique({ where: { id: tenantId } });
-  const engagement = await prisma.engagement.findFirst({
+// Client-facing projection — SANITIZED to client-safe data only (P0-LEAK).
+// Returns an explicit DTO (never raw Prisma rows) so internal fields can never
+// leak: clientVisible milestones only, final documents only, non-draft invoices,
+// no internal Task rows, no internal ticket "proposed actions", no SYSTEM/agent
+// draft messages. This is the SINGLE read path the portal + view-as-client use.
+export async function getClientDashboardProjection(tenantId: string) {
+  const tenant = await prisma.tenant.findUnique({
+    where: { id: tenantId },
+    select: { id: true, name: true },
+  });
+
+  const raw = await prisma.engagement.findFirst({
     where: { tenantId },
     orderBy: { createdAt: "desc" },
     include: {
-      charter: true,
-      milestones: { orderBy: { orderIndex: "asc" } },
+      milestones: { where: { clientVisible: true }, orderBy: { orderIndex: "asc" } },
       kpis: true,
       slas: true,
-      invoices: { orderBy: { createdAt: "desc" } },
-      documents: { where: { isFinal: true }, orderBy: { createdAt: "desc" } }, // finals only
-      tickets: {
-        orderBy: { createdAt: "desc" },
-        include: { messages: { where: { author: { not: "SYSTEM" } }, orderBy: { createdAt: "asc" } } }, // no internal drafts
-      },
+      invoices: { where: { status: { notIn: ["DRAFT", "VOID"] } }, orderBy: { createdAt: "desc" } },
+      documents: { where: { isFinal: true }, orderBy: { createdAt: "desc" } },
+      tickets: { orderBy: { createdAt: "desc" } },
     },
   });
-  // Strip the internal "proposed action" from anything client-visible.
-  if (engagement) engagement.tickets.forEach((t) => { t.proposedAction = null; });
+
+  if (!raw) return { tenant, engagement: null };
+
+  const engagement = {
+    id: raw.id,
+    name: raw.name,
+    code: raw.code,
+    status: raw.status,
+    startDate: raw.startDate,
+    targetEndDate: raw.targetEndDate,
+    budgetMinor: raw.budgetMinor,
+    currency: raw.currency,
+    milestones: raw.milestones.map((m) => ({
+      id: m.id, title: m.title, description: m.description, status: m.status, dueDate: m.dueDate,
+    })),
+    kpis: raw.kpis.map((k) => ({ id: k.id, label: k.label, value: k.value, unit: k.unit })),
+    slas: raw.slas.map((s) => ({ id: s.id, metric: s.metric, target: s.target, status: s.status })),
+    invoices: raw.invoices.map((i) => ({
+      id: i.id, number: i.number, amountMinor: i.amountMinor, currency: i.currency, dueAt: i.dueAt, status: i.status,
+    })),
+    documents: raw.documents.map((d) => ({
+      id: d.id, name: d.name, isFinal: d.isFinal, signed: d.signed, kind: d.kind, version: d.version, sizeBytes: d.sizeBytes,
+    })),
+    // proposedAction is internal — always null on the client surface.
+    tickets: raw.tickets.map((t) => ({
+      id: t.id, subject: t.subject, channel: t.channel, status: t.status,
+      proposedAction: null as string | null,
+    })),
+  };
   return { tenant, engagement };
 }
 

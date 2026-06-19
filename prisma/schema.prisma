@@ -105,6 +105,8 @@ model Milestone {
   completedAt  DateTime?
   orderIndex   Int        @default(0)
   notifyClient Boolean    @default(true)
+  clientVisible Boolean   @default(true) // P0-LEAK: only client-visible milestones reach the portal
+  source       String     @default("HUMAN") // P0-PROV: BRAIN | HUMAN | AGENT — re-sync/agents must not clobber HUMAN
   createdAt    DateTime   @default(now())
   tasks        Task[]
 }
@@ -149,6 +151,7 @@ model Document {
   signed       Boolean     @default(false)
   url          String?
   sizeBytes    Int         @default(0)
+  source       String      @default("HUMAN") // P0-PROV: BRAIN | HUMAN | AGENT
   createdAt    DateTime    @default(now())
 }
 
@@ -192,6 +195,7 @@ model Kpi {
   unit         String? // % | $ | count | days
   target       Float?
   trend        String? // UP | DOWN | FLAT
+  source       String     @default("HUMAN") // P0-PROV: BRAIN | HUMAN | AGENT
   asOf         DateTime   @default(now())
 }
 
@@ -203,6 +207,7 @@ model Sla {
   target       String
   actual       String?
   status       String     @default("MEETING") // MEETING | AT_RISK | BREACHED
+  source       String     @default("HUMAN") // P0-PROV: BRAIN | HUMAN | AGENT
 }
 
 // ── Omnichannel ticketing + autonomy ──────────────────────────────────

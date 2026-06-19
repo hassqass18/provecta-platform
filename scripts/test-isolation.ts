@@ -12,14 +12,14 @@
  * Guarded so it refuses to run against the production branch by accident.
  */
 import { prisma } from "../src/lib/db";
-import { getClientDashboard } from "../src/server/data";
+import { getClientDashboardProjection } from "../src/server/data";
 
-const PROD_HINT = "pooler"; // prod Neon URL uses the pooler host
+const PROD_ENDPOINT = "ep-bitter-brook"; // the production Neon endpoint id
 function assertNotProd() {
   const url = process.env.DATABASE_URL ?? "";
-  if (process.env.ALLOW_PROD_ISOLATION_TEST !== "1" && url.includes(PROD_HINT)) {
+  if (process.env.ALLOW_PROD_ISOLATION_TEST !== "1" && url.includes(PROD_ENDPOINT)) {
     throw new Error(
-      "Refusing to run isolation test against a pooler/prod DATABASE_URL. " +
+      "Refusing to run the seeding isolation test against the PROD Neon endpoint. " +
         "Point DATABASE_URL at a Neon dev branch (or set ALLOW_PROD_ISOLATION_TEST=1 to override)."
     );
   }
@@ -35,8 +35,12 @@ async function main() {
   assertNotProd();
 
   const tag = "iso-test";
-  // Clean any prior run.
-  await prisma.tenant.deleteMany({ where: { slug: { in: [`${tag}-a`, `${tag}-b`] } } });
+  const cleanup = async () => {
+    // FKs are RESTRICT — delete children before tenants.
+    await prisma.engagement.deleteMany({ where: { code: { in: [`${tag}-a-1`, `${tag}-b-1`] } } });
+    await prisma.tenant.deleteMany({ where: { slug: { in: [`${tag}-a`, `${tag}-b`] } } });
+  };
+  await cleanup(); // clean any prior run
 
   const a = await prisma.tenant.create({
     data: { name: "Iso Org A", slug: `${tag}-a`, type: "CLIENT", isDemo: true },
@@ -51,14 +55,18 @@ async function main() {
     data: { tenantId: b.id, name: "B engagement", code: `${tag}-b-1`, status: "ACTIVE" },
   });
 
-  const dashA = await getClientDashboard(a.id);
+  const dashA = await getClientDashboardProjection(a.id);
   if (dashA.tenant?.id !== a.id) fail("org A dashboard returned wrong/no tenant");
-  if (dashA.engagement && dashA.engagement.tenantId !== a.id) {
-    fail("org A dashboard leaked an engagement from another tenant");
+  // The projection filters by tenantId; org A must only ever see org A's engagement.
+  if (dashA.engagement && dashA.engagement.code !== `${tag}-a-1`) {
+    fail(`org A dashboard leaked a foreign engagement: ${dashA.engagement.code}`);
+  }
+  const dashB = await getClientDashboardProjection(b.id);
+  if (dashB.engagement && dashB.engagement.code !== `${tag}-b-1`) {
+    fail(`org B dashboard leaked a foreign engagement: ${dashB.engagement.code}`);
   }
 
-  // Cleanup.
-  await prisma.tenant.deleteMany({ where: { slug: { in: [`${tag}-a`, `${tag}-b`] } } });
+  await cleanup();
 
   if (failures) {
     console.error(`test-isolation: ${failures} failure(s)`);

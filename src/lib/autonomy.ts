@@ -35,6 +35,10 @@ export async function recordApproval(actionCategory: string) {
 }
 
 export function canAutoExecute(state: string, riskClass: string): boolean {
+  // P0 global kill-switch: when AUTONOMY_FREEZE is set, every action is forced
+  // to SUGGEST (nothing auto-executes), regardless of state or risk class.
+  if (process.env.AUTONOMY_FREEZE) return false;
+  // Hard, non-flag-overridable gate: regulated/irreversible never auto-execute.
   if (riskClass === "IRREVERSIBLE" || riskClass === "REGULATED") return false;
   return state === "AUTONOMOUS";
 }

@@ -22,6 +22,12 @@ if (canAutoExecute("SUGGEST", "REVERSIBLE")) fail("REVERSIBLE/SUGGEST auto-execu
 if (canAutoExecute("AUTO_WITH_REVIEW", "REVERSIBLE")) fail("REVERSIBLE/AUTO_WITH_REVIEW auto-executed");
 if (!canAutoExecute("AUTONOMOUS", "REVERSIBLE")) fail("REVERSIBLE/AUTONOMOUS should auto-execute");
 
+// AUTONOMY_FREEZE kill-switch: when set, even REVERSIBLE/AUTONOMOUS must not auto-execute.
+process.env.AUTONOMY_FREEZE = "1";
+if (canAutoExecute("AUTONOMOUS", "REVERSIBLE")) fail("AUTONOMY_FREEZE failed to block REVERSIBLE/AUTONOMOUS");
+delete process.env.AUTONOMY_FREEZE;
+if (!canAutoExecute("AUTONOMOUS", "REVERSIBLE")) fail("unfreeze did not restore REVERSIBLE/AUTONOMOUS");
+
 if (failures) {
   console.error(`test-gate: ${failures} failure(s)`);
   process.exit(1);
