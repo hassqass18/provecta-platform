@@ -20,11 +20,15 @@ if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma;
 // we fall back to the base client: isolation then relies on the app-layer
 // tenant filter already present in the projection (keyless-safe, no enforcement).
 function rlsBase(): PrismaClient | null {
-  if (!process.env.RLS_DATABASE_URL) return null;
+  // Defensive: strip stray surrounding quotes/whitespace that can sneak into the
+  // env value (e.g. when copied from a quoted .env) — Prisma rejects a URL that
+  // doesn't start with postgresql://.
+  const url = process.env.RLS_DATABASE_URL?.trim().replace(/^["']|["']$/g, "");
+  if (!url) return null;
   const client =
     globalForPrisma.prismaRls ??
     new PrismaClient({
-      datasources: { db: { url: process.env.RLS_DATABASE_URL } },
+      datasources: { db: { url } },
       log: ["error"],
     });
   if (process.env.NODE_ENV !== "production") globalForPrisma.prismaRls = client;
