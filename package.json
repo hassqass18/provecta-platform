@@ -12,6 +12,10 @@
     "build": "prisma generate && next build",
     "start": "next start",
     "typecheck": "tsc --noEmit",
+    "verify": "prisma generate && tsc --noEmit && next build && tsx scripts/test-isolation.ts",
+    "test:gate": "tsx scripts/test-gate.ts",
+    "test:isolation": "tsx scripts/test-isolation.ts",
+    "smoke": "tsx scripts/smoke.ts",
     "prisma:generate": "prisma generate",
     "db:push": "prisma db push",
     "db:seed": "node --import tsx prisma/seed.ts"
