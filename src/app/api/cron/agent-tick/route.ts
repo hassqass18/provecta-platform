@@ -3,6 +3,7 @@ import { requireCron } from "@/lib/cron";
 import { prisma } from "@/lib/db";
 import { ingestTenantFinals } from "@/server/brain/ingest";
 import { stageProjectFromTemplate } from "@/server/staging";
+import { processEvent } from "@/server/agent/runner";
 
 // P1C outbox worker: drains PENDING IngestJobs (brain pulls + project staging +
 // git-sync reconciles). Idempotent handlers; optimistic claim avoids double-drain
@@ -43,5 +44,24 @@ export async function GET(req: Request) {
     }
   }
 
-  return NextResponse.json({ ok: true, drained: results.length, results });
+  // P3A: drain the DomainEvent spine through the agent loop (planner→exec→critic).
+  const events = await prisma.domainEvent.findMany({ where: { status: "PENDING" }, orderBy: { createdAt: "asc" }, take: 10 });
+  const agentRuns: { event: string; runStatus: string }[] = [];
+  for (const ev of events) {
+    const claimed = await prisma.domainEvent.updateMany({
+      where: { id: ev.id, status: "PENDING" },
+      data: { status: "PROCESSING", attempts: { increment: 1 } },
+    });
+    if (claimed.count === 0) continue;
+    try {
+      const r = await processEvent({ id: ev.id, type: ev.type, entity: ev.entity, entityId: ev.entityId, payload: ev.payload });
+      await prisma.domainEvent.update({ where: { id: ev.id }, data: { status: "PROCESSED", processedAt: new Date() } });
+      agentRuns.push({ event: ev.type, runStatus: r.status });
+    } catch (e) {
+      await prisma.domainEvent.update({ where: { id: ev.id }, data: { status: "FAILED", lastError: String(e) } });
+      agentRuns.push({ event: ev.type, runStatus: "FAILED" });
+    }
+  }
+
+  return NextResponse.json({ ok: true, drained: results.length, results, agentRuns });
 }

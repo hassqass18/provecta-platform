@@ -330,6 +330,61 @@ model ProjectTemplateKpi {
   unit        String?
 }
 
+// ── P3A: DomainEvent spine + agent runs (system/admin; bypass client) ──
+model DomainEvent {
+  id          String    @id @default(cuid())
+  type        String // CLIENT_CREATE | ENGAGEMENT_STAGED | DOCUMENT_INGESTED | MILESTONE_COMPLETED | INBOUND_TICKET | INVOICE_OVERDUE
+  entity      String
+  entityId    String?
+  payload     Json?
+  status      String    @default("PENDING") // PENDING | PROCESSING | PROCESSED | FAILED
+  attempts    Int       @default(0)
+  lastError   String?
+  createdAt   DateTime  @default(now())
+  processedAt DateTime?
+}
+
+model AgentRun {
+  id             String      @id @default(cuid())
+  trigger        String
+  actionCategory String
+  riskClass      String      @default("REVERSIBLE")
+  autonomyState  String      @default("SUGGEST")
+  status         String      @default("PROPOSED") // PROPOSED | AWAITING_REVIEW | AUTO_EXECUTED | REJECTED | DONE | FAILED
+  inputJson      Json?
+  outputJson     Json?
+  criticScore    Int?
+  auditLogId     String?
+  createdAt      DateTime    @default(now())
+  steps          AgentStep[]
+}
+
+model AgentStep {
+  id         String   @id @default(cuid())
+  runId      String
+  run        AgentRun @relation(fields: [runId], references: [id])
+  idx        Int
+  role       String // PLANNER | EXECUTOR | CRITIC
+  inputJson  Json?
+  outputJson Json?
+  retries    Int      @default(0)
+}
+
+// ── P3B: Communication ledger (tenant-scoped; mirrored read to the client) ──
+model Communication {
+  id            String   @id @default(cuid())
+  tenantId      String
+  engagementId  String?
+  direction     String // OUT | IN
+  channel       String
+  actorType     String // AGENT | HUMAN | CLIENT
+  body          String
+  brainQueryId  String?
+  autonomyState String?
+  status        String   @default("SENT")
+  createdAt     DateTime @default(now())
+}
+
 // ── P2A: per-engagement metric snapshot (O(1) client dashboard read) ──
 model EngagementMetricSnapshot {
   id                 String   @id @default(cuid())

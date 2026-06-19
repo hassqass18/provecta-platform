@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { sendComm } from "@/server/comms/send";
+import { emitEvent } from "@/lib/events/emit";
 
 // Omnichannel inbound: WhatsApp / Slack / Telegram / Discord / Email → ticket.
 // Gated: if a channel token is configured, it is required; absent ⇒ open in dev.
@@ -65,8 +67,15 @@ export async function POST(req: Request, { params }: { params: Promise<{ channel
   if (text) {
     await prisma.ticketMessage.create({ data: { ticketId: ticket.id, author: "CLIENT", body: text } });
   }
-  await prisma.auditLog.create({
-    data: { action: "INBOUND_TICKET", entity: "Ticket", entityId: ticket.id, meta: channel },
+  // Log the inbound on the Communication ledger + emit a DomainEvent (agent loop).
+  await sendComm({
+    tenantId: tenant.id,
+    engagementId: engagement?.id ?? null,
+    channel: channel.toUpperCase(),
+    actorType: "CLIENT",
+    body: text || subject,
+    direction: "IN",
   });
+  await emitEvent("INBOUND_TICKET", "Ticket", ticket.id, { channel, tenantId: tenant.id });
   return NextResponse.json({ ok: true, ticketId: ticket.id });
 }

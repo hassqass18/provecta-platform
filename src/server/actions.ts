@@ -5,6 +5,9 @@ import { prisma } from "@/lib/db";
 import { requireAdmin, requireUser } from "@/lib/session";
 import { recordApproval } from "@/lib/autonomy";
 import { draftReply } from "@/lib/brain";
+import { emitEvent } from "@/lib/events/emit";
+import { emitClientUpdate } from "@/server/notifications/fanout";
+import { recomputeSnapshot } from "@/server/dashboards/metrics";
 
 function ticketCategory(channel: string, subject: string): string {
   if (/status|call|milestone|progress/i.test(subject)) return "milestone-status-reply";
@@ -34,19 +37,22 @@ export async function advanceMilestone(formData: FormData) {
   });
   await audit(admin.id, "MILESTONE_ADVANCE", "Milestone", id, `${current.status}→${next}`);
 
-  // Milestone reached → notify the client (logged in the back office).
+  // Milestone reached → emit a DomainEvent (agent loop picks it up), send an
+  // artifact-grounded (honesty-gated) client update via the Communication ledger,
+  // and refresh the live snapshot.
   if (next === "COMPLETED") {
-    const eng = await prisma.engagement.findUnique({
-      where: { id: current.engagementId },
-      include: { tenant: { include: { users: true } } },
-    });
+    await emitEvent("MILESTONE_COMPLETED", "Milestone", id, { engagementId: current.engagementId, title: current.title });
+    const eng = await prisma.engagement.findUnique({ where: { id: current.engagementId }, select: { tenantId: true, name: true } });
     if (eng) {
-      for (const u of eng.tenant.users) {
-        await prisma.notification.create({
-          data: { userId: u.id, type: "MILESTONE", body: `Milestone "${current.title}" completed on ${eng.name}.` },
-        });
-      }
-      await audit(admin.id, "CLIENT_NOTIFY", "Engagement", eng.id, `milestone complete → ${eng.tenant.users.length} client user(s) notified`);
+      await emitClientUpdate({
+        tenantId: eng.tenantId,
+        engagementId: current.engagementId,
+        body: `Milestone "${current.title}" completed on ${eng.name}.`,
+        claim: "MILESTONE_COMPLETE",
+        backing: { milestoneStatus: "COMPLETED" },
+      });
+      await recomputeSnapshot(current.engagementId);
+      await audit(admin.id, "CLIENT_NOTIFY", "Engagement", current.engagementId, "milestone complete → client update logged");
     }
   }
   revalidatePath(`/admin/engagements/${current.engagementId}`);
