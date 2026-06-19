@@ -18,6 +18,7 @@ export function HamburgerNav({
   showSignOut = false,
   user,
   theme,
+  drawer = false,
 }: {
   brand: string;
   items: NavLink[];
@@ -25,7 +26,10 @@ export function HamburgerNav({
   showSignOut?: boolean;
   user?: { name?: string | null; email: string; role?: string };
   theme?: "dark" | "light";
+  /** Side-drawer (Karibu-style, compact) instead of the full-screen overlay. */
+  drawer?: boolean;
 }) {
+  const itemAlign = drawer ? undefined : ({ textAlign: "center" } as const);
   const [open, setOpen] = useState(false);
   const close = () => setOpen(false);
 
@@ -57,7 +61,11 @@ export function HamburgerNav({
         </div>
       </nav>
 
-      <div className={`navmobile ${open ? "open" : ""}`} role="dialog" aria-modal="true">
+      {drawer ? (
+        <div className={`navmobile__backdrop ${open ? "open" : ""}`} onClick={close} aria-hidden />
+      ) : null}
+
+      <div className={`navmobile ${drawer ? "navmobile--drawer" : ""} ${open ? "open" : ""}`} role="dialog" aria-modal="true">
         <button className="navmobile__close" aria-label="Close menu" onClick={close}>
           ✕
         </button>
@@ -75,11 +83,11 @@ export function HamburgerNav({
 
         {items.map((i) =>
           i.external ? (
-            <a key={i.href + i.label} href={i.href} target="_blank" rel="noopener noreferrer" onClick={close} style={{ textAlign: "center" }}>
+            <a key={i.href + i.label} href={i.href} target="_blank" rel="noopener noreferrer" onClick={close} style={itemAlign}>
               {i.label} ↗
             </a>
           ) : (
-            <Link key={i.href + i.label} href={i.href} onClick={close} style={{ textAlign: "center" }}>
+            <Link key={i.href + i.label} href={i.href} onClick={close} style={itemAlign}>
               {i.label}
               {i.desc ? (
                 <span style={{ display: "block", fontSize: "0.8rem", fontWeight: 400, color: "var(--text-white-secondary)" }}>

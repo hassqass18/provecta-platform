@@ -1,4 +1,5 @@
 import { prisma, dbForTenant } from "@/lib/db";
+import { recomputeSnapshot } from "./dashboards/metrics";
 
 export async function getAdminOverview() {
   const [tenants, engagements, openTickets, invoices, milestones, recentActivity, tickets] = await Promise.all([
@@ -122,18 +123,30 @@ export async function getClientDashboardProjection(tenantId: string) {
       kpis: true,
       slas: true,
       invoices: { where: { status: { notIn: ["DRAFT", "VOID"] } }, orderBy: { createdAt: "desc" } },
-      documents: { where: { isFinal: true }, orderBy: { createdAt: "desc" } },
+      documents: { where: { isFinal: true, clientVisible: true }, orderBy: { createdAt: "desc" } },
       tickets: { orderBy: { createdAt: "desc" } },
     },
   });
 
   if (!raw) return { tenant, engagement: null };
 
+  // P2A: keep the O(1) snapshot live (bypass upsert; client reads the projection).
+  const snap = await recomputeSnapshot(raw.id);
+
   const engagement = {
     id: raw.id,
     name: raw.name,
     code: raw.code,
     status: raw.status,
+    snapshot: {
+      ragOverall: snap.ragOverall,
+      milestonesComplete: snap.milestonesComplete,
+      milestonesTotal: snap.milestonesTotal,
+      slaAttainmentPct: snap.slaAttainmentPct,
+      openTickets: snap.openTickets,
+      daysRemaining: snap.daysRemaining,
+      computedAt: snap.computedAt,
+    },
     startDate: raw.startDate,
     targetEndDate: raw.targetEndDate,
     budgetMinor: raw.budgetMinor,
@@ -156,6 +169,15 @@ export async function getClientDashboardProjection(tenantId: string) {
     })),
   };
   return { tenant, engagement };
+}
+
+// Admin: brain-pulled finals awaiting client-visibility approval (P1D).
+export async function getPendingBrainDocs() {
+  return prisma.document.findMany({
+    where: { source: "BRAIN", clientVisible: false },
+    include: { tenant: true },
+    orderBy: { createdAt: "desc" },
+  });
 }
 
 export async function getDemoTenantId(): Promise<string | null> {

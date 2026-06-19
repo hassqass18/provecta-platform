@@ -26,9 +26,33 @@ export async function createClient(formData: FormData) {
   const admin = await requireAdmin();
   const name = str(formData, "name");
   if (!name) return;
-  const t = await prisma.tenant.create({ data: { name, slug: slugify(name), type: "CLIENT" } });
-  await audit(admin.id, "CLIENT_CREATE", "Tenant", t.id, name);
+  // Onboarding: the client's main point of communication. Inbound on this channel
+  // (matched by channelAddress) routes to this client and is their pull source.
+  const preferredChannel = str(formData, "preferredChannel") || null;
+  const channelAddress = str(formData, "channelAddress") || null;
+  const t = await prisma.tenant.create({
+    data: { name, slug: slugify(name), type: "CLIENT", preferredChannel, channelAddress },
+  });
+  // P1C durable outbox: pull the client's brain finals + auto-stage an onboarding
+  // project. Drained idempotently by /api/cron/agent-tick (Vercel-safe, retryable).
+  await prisma.ingestJob.createMany({
+    data: [
+      { tenantId: t.id, kind: "PULL_FINALS", status: "PENDING" },
+      { tenantId: t.id, kind: "STAGE_PROJECT", status: "PENDING", payload: { templateKey: "onboarding" } },
+    ],
+  });
+  await audit(admin.id, "CLIENT_CREATE", "Tenant", t.id, preferredChannel ? `${name} · ${preferredChannel}` : name);
   revalidatePath("/admin/clients");
+}
+
+// Approve a brain-pulled document for client visibility (client-approval finality).
+export async function approveDocument(formData: FormData) {
+  const admin = await requireAdmin();
+  const id = str(formData, "id");
+  if (!id) return;
+  await prisma.document.update({ where: { id }, data: { clientVisible: true } });
+  await audit(admin.id, "DOCUMENT_APPROVE", "Document", id);
+  revalidatePath("/admin/brain");
 }
 
 // ── Engagements ───────────────────────────────────────────────────────
