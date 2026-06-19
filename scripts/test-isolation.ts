@@ -11,7 +11,7 @@
  * REQUIRES A WRITABLE NON-PROD DATABASE (a Neon dev branch or local Postgres).
  * Guarded so it refuses to run against the production branch by accident.
  */
-import { prisma } from "../src/lib/db";
+import { prisma, dbForTenant } from "../src/lib/db";
 import { getClientDashboardProjection } from "../src/server/data";
 
 const PROD_ENDPOINT = "ep-bitter-brook"; // the production Neon endpoint id
@@ -64,6 +64,19 @@ async function main() {
   const dashB = await getClientDashboardProjection(b.id);
   if (dashB.engagement && dashB.engagement.code !== `${tag}-b-1`) {
     fail(`org B dashboard leaked a foreign engagement: ${dashB.engagement.code}`);
+  }
+
+  // RLS-level proof: a NO-FILTER query via the tenant client must return only
+  // this org's rows (Postgres RLS, not just the app-layer where-filter). This
+  // also filters out the real forked-prod engagements — a strong check.
+  if (process.env.RLS_DATABASE_URL) {
+    const visible = await dbForTenant(a.id).engagement.findMany({ select: { code: true } });
+    const foreign = visible.filter((e) => e.code !== `${tag}-a-1`);
+    if (foreign.length) fail(`RLS leak: org A sees foreign engagements [${foreign.map((f) => f.code).join(", ")}]`);
+    if (!visible.some((e) => e.code === `${tag}-a-1`)) fail("RLS over-block: org A cannot see its own engagement");
+    console.log(`  RLS-level: org A's tenant client sees ${visible.length} engagement(s), all its own.`);
+  } else {
+    console.log("  RLS-level: skipped (RLS_DATABASE_URL unset) — app-layer scoping only.");
   }
 
   await cleanup();

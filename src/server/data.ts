@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/db";
+import { prisma, dbForTenant } from "@/lib/db";
 
 export async function getAdminOverview() {
   const [tenants, engagements, openTickets, invoices, milestones, recentActivity, tickets] = await Promise.all([
@@ -106,12 +106,15 @@ export async function getAllInvoices(f: Filter = {}) {
 // no internal Task rows, no internal ticket "proposed actions", no SYSTEM/agent
 // draft messages. This is the SINGLE read path the portal + view-as-client use.
 export async function getClientDashboardProjection(tenantId: string) {
-  const tenant = await prisma.tenant.findUnique({
+  // RLS-enforced client: Postgres double-checks tenant scoping on top of the
+  // explicit where-filter, so a bug here still can't cross tenants.
+  const db = dbForTenant(tenantId);
+  const tenant = await db.tenant.findUnique({
     where: { id: tenantId },
     select: { id: true, name: true },
   });
 
-  const raw = await prisma.engagement.findFirst({
+  const raw = await db.engagement.findFirst({
     where: { tenantId },
     orderBy: { createdAt: "desc" },
     include: {
