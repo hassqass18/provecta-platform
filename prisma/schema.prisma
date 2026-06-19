@@ -22,6 +22,8 @@ model Tenant {
   isDemo      Boolean      @default(false)
   logoUrl     String?
   brainFolder String?      @unique // P1A: maps this tenant to its folder under BrainRepo.pathPrefix
+  preferredChannel String? // P1C onboarding: WHATSAPP | EMAIL | SLACK | OPEN — the client's main point of contact
+  channelAddress   String? // the phone / email / channel-id on that channel; inbound is routed + pulled from here
   createdAt   DateTime     @default(now())
   users       User[]
   engagements Engagement[]

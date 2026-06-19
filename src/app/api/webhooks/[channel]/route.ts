@@ -33,9 +33,20 @@ export async function POST(req: Request, { params }: { params: Promise<{ channel
   const text = String(body.text ?? body.message ?? "");
   const subject = String(body.subject ?? text ?? "Inbound message").slice(0, 120) || "Inbound message";
 
-  const tenant = body.tenantSlug
-    ? await prisma.tenant.findUnique({ where: { slug: String(body.tenantSlug) } })
-    : await prisma.tenant.findFirst({ where: { isDemo: true } });
+  // Route to the client whose onboarded main channel + address matches the sender
+  // — that channel is their designated point of contact / information source.
+  const sender = String(body.from ?? body.sender ?? body.address ?? body.msisdn ?? "").trim();
+  let tenant =
+    sender && channel !== "portal"
+      ? await prisma.tenant.findFirst({
+          where: { preferredChannel: channel.toUpperCase(), channelAddress: sender },
+        })
+      : null;
+  // Fallbacks: explicit tenantSlug, then the demo tenant.
+  if (!tenant && body.tenantSlug) {
+    tenant = await prisma.tenant.findUnique({ where: { slug: String(body.tenantSlug) } });
+  }
+  if (!tenant) tenant = await prisma.tenant.findFirst({ where: { isDemo: true } });
   if (!tenant) return NextResponse.json({ error: "no tenant" }, { status: 400 });
 
   const engagement = await prisma.engagement.findFirst({ where: { tenantId: tenant.id } });

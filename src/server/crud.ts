@@ -26,8 +26,14 @@ export async function createClient(formData: FormData) {
   const admin = await requireAdmin();
   const name = str(formData, "name");
   if (!name) return;
-  const t = await prisma.tenant.create({ data: { name, slug: slugify(name), type: "CLIENT" } });
-  await audit(admin.id, "CLIENT_CREATE", "Tenant", t.id, name);
+  // Onboarding: the client's main point of communication. Inbound on this channel
+  // (matched by channelAddress) routes to this client and is their pull source.
+  const preferredChannel = str(formData, "preferredChannel") || null;
+  const channelAddress = str(formData, "channelAddress") || null;
+  const t = await prisma.tenant.create({
+    data: { name, slug: slugify(name), type: "CLIENT", preferredChannel, channelAddress },
+  });
+  await audit(admin.id, "CLIENT_CREATE", "Tenant", t.id, preferredChannel ? `${name} · ${preferredChannel}` : name);
   revalidatePath("/admin/clients");
 }
 
