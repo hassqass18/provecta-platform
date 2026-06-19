@@ -253,6 +253,9 @@ model AuditLog {
   entity    String
   entityId  String?
   meta      String?
+  hash      String? // P4D: tamper-evident hash of this event
+  prevHash  String? // P4D: chained to the prior sealed event
+  seq       Int? // P4D: sealed sequence number
   createdAt DateTime @default(now())
 }
 

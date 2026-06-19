@@ -13,6 +13,8 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     { href: "/admin/notifications", label: "Notifications" },
     { href: "/admin/autonomy", label: "Autonomy" },
     { href: "/admin/finance", label: "Finance" },
+    { href: "/admin/economics", label: "Economics" },
+    { href: "/admin/ops-health", label: "Ops health" },
     { href: "/admin/invoices", label: "Invoices" },
     { href: "/admin/esign", label: "E-signature" },
     { href: "/admin/change", label: "Change (ADKAR)" },
