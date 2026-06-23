@@ -1,9 +1,12 @@
 import type { ReactNode } from "react";
 
-// Dark-theme input styling for admin CRUD forms.
+// Theme-adaptive input styling for admin CRUD forms. Uses the standard
+// slate/white utilities that the .appdark / .applight scopes retone, so inputs
+// are legible in BOTH light and dark (the old hardcoded white-on-white was
+// invisible on the light theme's white cards).
 export const AINPUT =
-  "w-full rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-white/40 focus:border-[#2997ff] focus:outline-none";
-export const ALABEL = "mb-1 block text-xs font-medium text-white/55";
+  "w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-[#0071e3] focus:outline-none";
+export const ALABEL = "mb-1 block text-xs font-medium text-slate-500";
 export const ABTN = "rounded-lg bg-[#0071e3] px-4 py-2 text-sm font-semibold text-white hover:opacity-90";
 
 // Collapsible "+ New …" disclosure (native <details>, no client JS).
