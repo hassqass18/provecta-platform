@@ -246,6 +246,17 @@ model TicketMessage {
   createdAt DateTime @default(now())
 }
 
+// ── Mobile push (native client app) ───────────────────────────────────
+model DeviceToken {
+  id            String   @id @default(cuid())
+  userId        String
+  tenantId      String?
+  expoPushToken String   @unique
+  platform      String   @default("ios") // ios | android
+  createdAt     DateTime @default(now())
+  lastSeenAt    DateTime @default(now())
+}
+
 // ── Audit & notifications ─────────────────────────────────────────────
 model AuditLog {
   id        String   @id @default(cuid())

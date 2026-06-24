@@ -114,6 +114,10 @@ export async function sendOnChannel(
       return sendTelegram(address, body);
     case "whatsapp":
       return sendWhatsApp(address, body);
+    case "app":
+      // The app channel delivers in-app (the Communication ledger the client
+      // reads) + via Expo push (notifications/fanout) — no third-party token.
+      return { sent: false, gated: true };
     case "email":
     case "portal":
     default:

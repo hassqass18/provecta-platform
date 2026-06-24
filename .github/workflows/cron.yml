@@ -1,0 +1,48 @@
+name: Provecta sync crons
+
+# Ongoing scheduler for the prod platform. The Vercel Hobby plan caps native cron
+# at once/day (vercel.json runs /api/cron/reconcile daily), so the sub-daily ticks
+# run here instead — same Bearer CRON_SECRET the routes already require.
+#
+#   agent-tick          drains the DomainEvent spine (client replies / agent loop)
+#                       + the IngestJob outbox (brain pulls, project staging)
+#   brain-git-reconcile re-ingests FINAL deliverables from the brain git repo
+#
+# NOTE: GitHub-hosted schedules can be delayed under load and auto-disable after
+# ~60 days of no repo activity. For tighter SLAs, point an external scheduler
+# (e.g. cron-job.org) at the same two endpoints with the same Bearer header.
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"   # agent-tick — every 10 min
+    - cron: "*/30 * * * *"   # brain reconcile — every 30 min
+  workflow_dispatch: {}
+
+concurrency:
+  group: provecta-cron
+  cancel-in-progress: false
+
+jobs:
+  agent-tick:
+    if: github.event.schedule == '*/10 * * * *' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Drain events + outbox
+        run: |
+          code=$(curl -sS -o /tmp/out -w "%{http_code}" \
+            -H "authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            https://www.pgco.world/api/cron/agent-tick)
+          echo "agent-tick → HTTP $code"; cat /tmp/out; echo
+          test "$code" = "200"
+
+  brain-reconcile:
+    if: github.event.schedule == '*/30 * * * *' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Re-pull brain finals
+        run: |
+          code=$(curl -sS -o /tmp/out -w "%{http_code}" \
+            -H "authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            https://www.pgco.world/api/cron/brain-git-reconcile)
+          echo "brain-git-reconcile → HTTP $code"; cat /tmp/out; echo
+          test "$code" = "200"
