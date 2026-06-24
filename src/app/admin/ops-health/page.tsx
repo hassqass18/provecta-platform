@@ -224,7 +224,7 @@ export default async function OpsHealthPage() {
             />
             <div className="px-5 py-4">
               <div className="text-xs font-medium uppercase tracking-wide text-slate-500">
-                Brain repo last sync
+                bRRAIn repo last sync
               </div>
               <div className="mt-1 text-xl font-bold text-slate-900">
                 {syncMin === null ? "never" : `${syncMin} min ago`}

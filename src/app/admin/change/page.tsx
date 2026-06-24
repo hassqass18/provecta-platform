@@ -66,7 +66,7 @@ export default async function ChangePage() {
               <input name={d} type="number" min={1} max={5} defaultValue={3} className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-1.5 text-sm" />
             </label>
           ))}
-          <button className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white sm:col-span-2 lg:col-span-4">Save assessment</button>
+          <div className="sm:col-span-2 lg:col-span-4"><button className="rounded-lg bg-[#0071e3] px-4 py-2 text-sm font-semibold text-white hover:opacity-90">Save assessment</button></div>
         </form>
       </Card>
     </div>

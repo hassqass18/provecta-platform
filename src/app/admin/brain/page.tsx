@@ -20,13 +20,13 @@ export default async function BrainPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold text-slate-900">Brain — proposal from transcript</h1>
+          <h1 className="text-xl font-bold text-slate-900">bRRAIn — proposal from transcript</h1>
           <p className="mt-1 text-sm text-slate-500">
             Record the discovery call → the brain drafts a proposal → engage the client.
           </p>
         </div>
         <Badge tone={provider === "STUB" ? "warn" : "success"}>
-          brain: {provider === "STUB" ? "local stub (gated)" : provider}
+          bRRAIn: {provider === "STUB" ? "local stub (gated)" : provider}
         </Badge>
       </div>
 
@@ -56,7 +56,7 @@ export default async function BrainPage() {
       </Card>
 
       <Card>
-        <CardHeader title={`Brain documents awaiting approval (${pendingDocs.length})`} />
+        <CardHeader title={`bRRAIn documents awaiting approval (${pendingDocs.length})`} />
         <p className="px-5 pt-3 text-xs text-slate-500">
           Pulled from the brain as FINAL but hidden from the client until you approve (client-approval finality).
         </p>
@@ -95,7 +95,7 @@ export default async function BrainPage() {
           </ul>
         </Card>
         <Card>
-          <CardHeader title="Brain query log" />
+          <CardHeader title="bRRAIn query log" />
           <ul className="divide-y divide-slate-100">
             {queries.map((q) => (
               <li key={q.id} className="px-5 py-3 text-sm">

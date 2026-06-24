@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { getClients } from "@/server/data";
 import { Badge, Card, CardHeader } from "@/components/ui";
 import { NewForm, AINPUT, ABTN } from "@/components/admin-form";
@@ -25,7 +26,10 @@ export default async function ClientsPage() {
             {clients.map((c) => (
               <tr key={c.id} className="hover:bg-slate-50">
                 <td className="px-5 py-3 font-medium text-slate-800">
-                  {c.name} {c.isDemo ? <Badge tone="info">DEMO</Badge> : null}
+                  <Link href={`/admin/clients/${c.id}`} className="text-[var(--color-brand)] hover:underline">
+                    {c.name}
+                  </Link>{" "}
+                  {c.isDemo ? <Badge tone="info">DEMO</Badge> : null}
                 </td>
                 <td className="px-2 py-3 text-slate-600">{c._count.engagements}</td>
                 <td className="px-2 py-3 text-slate-600">{c._count.users}</td>

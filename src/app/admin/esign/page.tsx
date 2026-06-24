@@ -87,7 +87,7 @@ export default async function EsignPage() {
             <option value="LAND_TRANSFER">LAND_TRANSFER</option>
             <option value="LONG_LEASE">LONG_LEASE</option>
           </select>
-          <button className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white sm:col-span-3">Create envelope</button>
+          <div className="sm:col-span-3"><button className="rounded-lg bg-[#0071e3] px-4 py-2 text-sm font-semibold text-white hover:opacity-90">Create envelope</button></div>
         </form>
       </Card>
 
