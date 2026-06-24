@@ -7,6 +7,7 @@ import { buildClientAgentPrompt } from "./client-prompt";
 import { CLIENT_TOOLS, dispatchClientTool, type ConvoCtx } from "./client-tools";
 import { sendOnChannel } from "@/server/comms/transport";
 import { sendComm } from "@/server/comms/send";
+import { sendPushToTenantClients } from "@/server/notifications/push";
 
 const MAX_TOOL_ITERS = 3;
 type HistTurn = { role: "user" | "assistant"; content: string; ts: string };
@@ -91,6 +92,8 @@ export async function converseFromTicket(ticketId: string): Promise<{ status: st
   if (auto) {
     await sendOnChannel(channel, address, reply); // gated transport; the Communication row is the auditable record
     await sendComm({ tenantId: tenant.id, engagementId: eng?.id ?? null, channel, actorType: "AGENT", body: reply, direction: "OUT", autonomyState: policy.state });
+    // Push the reply to the client's devices (in-app thread + notification).
+    await sendPushToTenantClients(tenant.id, { title: "Provecta", body: reply, data: { screen: "messages" } });
     history.push({ role: "assistant", content: reply, ts: new Date().toISOString() });
     await prisma.conversationState.update({ where: { id: state.id }, data: { history: history as unknown as object, escalated: ctx.escalated } });
     return { status: ctx.resolved ? "auto-resolved" : "auto-sent", reply };

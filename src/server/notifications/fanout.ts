@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db";
 import { assertBacked } from "@/lib/comms/honesty";
 import type { ClaimKind, Backing } from "@/lib/comms/honesty";
 import { sendComm } from "../comms/send";
+import { sendPushToUsers } from "./push";
 
 /**
  * Fan out an in-app Notification to every CLIENT user of a tenant.
@@ -23,6 +24,14 @@ export async function notifyTenantClients(
   await prisma.notification.createMany({
     data: clients.map((u) => ({ userId: u.id, type, body })),
   });
+
+  // Mirror the in-app notification to the client's devices via push. The screen
+  // hint deep-links the tap; updates land on Home, replies on Messages.
+  const screen = /reply|message/i.test(type) ? "messages" : "home";
+  await sendPushToUsers(
+    clients.map((u) => u.id),
+    { title: "Provecta", body, data: { screen } },
+  );
 }
 
 /**
