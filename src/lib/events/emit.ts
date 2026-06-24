@@ -16,10 +16,10 @@ export async function emitEvent(
   entity: string,
   entityId?: string,
   payload?: unknown
-): Promise<void> {
+): Promise<string> {
   const json = toJson(payload);
 
-  await prisma.$transaction([
+  const [, domainEvent] = await prisma.$transaction([
     prisma.auditLog.create({
       data: {
         action: type,
@@ -38,4 +38,9 @@ export async function emitEvent(
       },
     }),
   ]);
+
+  // The DomainEvent id lets callers process this event immediately (low-latency
+  // path) while the cron remains the safety net — both claim the same row, so it
+  // is never processed twice.
+  return domainEvent.id;
 }

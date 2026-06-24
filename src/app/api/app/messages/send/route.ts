@@ -1,9 +1,10 @@
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { getAppUser } from "@/lib/app-auth";
 import { sendComm } from "@/server/comms/send";
 import { emitEvent } from "@/lib/events/emit";
+import { processOneEvent } from "@/server/agent/process-one";
 
 // The app IS the channel. A client message posts an inbound on the SAME spine
 // the omnichannel webhook uses (Communication ledger + Ticket + INBOUND_TICKET
@@ -61,9 +62,21 @@ export async function POST(req: Request) {
     body: text,
     direction: "IN",
   });
-  await emitEvent("INBOUND_TICKET", "Ticket", ticket.id, {
+  const eventId = await emitEvent("INBOUND_TICKET", "Ticket", ticket.id, {
     channel: "app",
     tenantId: user.tenantId,
+  });
+
+  // Respond immediately, then run the agent right after (vital client comms get
+  // a near-instant reply instead of waiting for the next scheduled tick). The
+  // cron remains the safety net — processOneEvent claims the same DomainEvent,
+  // so it can't be handled twice.
+  after(async () => {
+    try {
+      await processOneEvent(eventId);
+    } catch {
+      // Best-effort: on any failure the event stays for the cron to retry.
+    }
   });
 
   return NextResponse.json({ ok: true, ticketId: ticket.id });
