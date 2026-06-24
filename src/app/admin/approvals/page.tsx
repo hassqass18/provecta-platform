@@ -26,8 +26,8 @@ export default async function ApprovalsPage() {
         <CardHeader title={`Awaiting review (${runs.length})`} />
         <ul className="divide-y divide-slate-100">
           {runs.map((r) => (
-            <li key={r.id} className="flex flex-wrap items-center justify-between gap-3 px-5 py-3">
-              <div>
+            <li key={r.id} className="flex flex-wrap items-start justify-between gap-3 px-5 py-3">
+              <div className="min-w-0 flex-1">
                 <div className="text-sm font-medium text-slate-800">
                   {r.actionCategory} <span className="text-slate-400">·</span> {r.trigger}
                 </div>
@@ -37,6 +37,14 @@ export default async function ApprovalsPage() {
                   {r.criticScore != null ? <span>· critic {r.criticScore}</span> : null}
                   <span>· {shortDate(r.createdAt)}</span>
                 </div>
+                {(r.inputJson as { inbound?: string } | null)?.inbound ? (
+                  <div className="mt-1.5 text-xs text-slate-500">Client: “{(r.inputJson as { inbound?: string }).inbound}”</div>
+                ) : null}
+                {(r.outputJson as { reply?: string } | null)?.reply ? (
+                  <div className="mt-1.5 max-w-2xl rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-700">
+                    Drafted reply: {(r.outputJson as { reply?: string }).reply}
+                  </div>
+                ) : null}
               </div>
               <div className="flex items-center gap-2">
                 <form action={approveRun}>

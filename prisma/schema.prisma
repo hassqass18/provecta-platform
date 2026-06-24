@@ -127,6 +127,8 @@ model Task {
   title        String
   status       String     @default("TODO") // TODO | IN_PROGRESS | DONE
   priority     String     @default("MEDIUM") // LOW | MEDIUM | HIGH
+  source       String     @default("HUMAN") // HUMAN | AGENT | CLIENT_REQUEST (agent-logged client requests)
+  origin       String? // free-text origin note (e.g. inbound channel + summary)
   assigneeId   String?
   assignee     User?      @relation(fields: [assigneeId], references: [id])
   dueDate      DateTime?
@@ -386,6 +388,21 @@ model Communication {
   autonomyState String?
   status        String   @default("SENT")
   createdAt     DateTime @default(now())
+}
+
+// ── bRRAIn client agent: rolling conversation state per (tenant, channel, address) ──
+model ConversationState {
+  id            String    @id @default(cuid())
+  tenantId      String
+  channel       String
+  address       String
+  history       Json      @default("[]") // [{ role, content, ts }]
+  escalated     Boolean   @default(false)
+  lastInboundAt DateTime?
+  updatedAt     DateTime  @default(now())
+  createdAt     DateTime  @default(now())
+
+  @@unique([tenantId, channel, address])
 }
 
 // ── P2A: per-engagement metric snapshot (O(1) client dashboard read) ──

@@ -2,6 +2,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "../../lib/db";
 import { ensureAutonomyPolicy, canAutoExecute } from "../../lib/autonomy";
 import { askBrain } from "../../lib/brain";
+import { converseFromTicket } from "./converse";
 
 // Agent runner: turns a queued DomainEvent into a three-step AgentRun
 // (PLANNER → EXECUTOR/critic gate → CRITIC). The autonomy policy for the
@@ -50,6 +51,20 @@ export interface ProcessEventResult {
 }
 
 export async function processEvent(event: ProcessEventInput): Promise<ProcessEventResult> {
+  // Inbound client messages are handled by the bRRAIn conversation agent
+  // (reason → tools → guardrail → send/approve-first), not the generic loop.
+  if (event.type === "INBOUND_TICKET" && event.entityId) {
+    try {
+      const r = await converseFromTicket(event.entityId);
+      return { runId: "inbound", status: r.status };
+    } catch (err) {
+      await prisma.auditLog.create({
+        data: { action: "AGENT_CONVERSE_ERROR", entity: "Ticket", entityId: event.entityId, meta: String(err).slice(0, 200) },
+      });
+      return { runId: "inbound", status: "FAILED" };
+    }
+  }
+
   const { actionCategory, riskClass } = resolveAction(event.type);
   const policy = await ensureAutonomyPolicy(actionCategory, riskClass);
 
