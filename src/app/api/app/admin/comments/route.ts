@@ -7,9 +7,11 @@ const schema = z.object({
   targetType: z.enum(["MILESTONE", "DELIVERABLE", "DOCUMENT", "ENGAGEMENT"]),
   targetId: z.string().min(1),
   body: z.string().trim().min(1).max(4000),
+  internal: z.boolean().optional(), // true = internal note (not shown to the client)
 });
 
-// Staff reply on any thread from the admin cockpit → notifies the client.
+// Staff reply (public → notifies client) or internal note (team-only) from the
+// admin cockpit.
 export async function POST(req: Request) {
   const admin = await getAdminAppUser(req);
   if (!admin) return NextResponse.json({ error: "forbidden" }, { status: 403 });
@@ -24,10 +26,11 @@ export async function POST(req: Request) {
     authorId: admin.id,
     authorName: admin.name ?? "Provecta",
     body: parsed.data.body,
+    internal: parsed.data.internal,
   });
 
   return NextResponse.json({
     ok: true,
-    comment: { id: comment.id, authorType: "STAFF", authorName: admin.name ?? "Provecta", body: comment.body, createdAt: comment.createdAt },
+    comment: { id: comment.id, authorType: "STAFF", authorName: admin.name ?? "Provecta", body: comment.body, internal: comment.internal, createdAt: comment.createdAt },
   });
 }

@@ -426,6 +426,7 @@ model Comment {
   authorId     String?
   authorName   String?
   body         String
+  internal     Boolean  @default(false) // staff-only internal note — never shown to clients
   createdAt    DateTime @default(now())
 
   @@index([targetType, targetId])

@@ -46,9 +46,13 @@ export async function resolveTarget(targetType: string, targetId: string): Promi
   return null;
 }
 
-export async function listComments(targetType: string, targetId: string) {
+export async function listComments(
+  targetType: string,
+  targetId: string,
+  opts: { includeInternal?: boolean } = {},
+) {
   const rows = await prisma.comment.findMany({
-    where: { targetType, targetId },
+    where: { targetType, targetId, ...(opts.includeInternal ? {} : { internal: false }) },
     orderBy: { createdAt: "asc" },
     take: 200,
   });
@@ -57,6 +61,7 @@ export async function listComments(targetType: string, targetId: string) {
     authorType: c.authorType,
     authorName: c.authorName,
     body: c.body,
+    internal: c.internal,
     createdAt: c.createdAt,
   }));
 }
@@ -79,9 +84,11 @@ export async function postComment(input: {
   authorId?: string | null;
   authorName?: string | null;
   body: string;
+  internal?: boolean; // staff-only note — never reaches the client
 }) {
   const ref = await resolveTarget(input.targetType, input.targetId);
   if (!ref) throw new Error("target not found");
+  const internal = !!input.internal && input.authorType !== "CLIENT";
 
   const comment = await prisma.comment.create({
     data: {
@@ -93,10 +100,17 @@ export async function postComment(input: {
       authorId: input.authorId ?? null,
       authorName: input.authorName ?? null,
       body: input.body,
+      internal,
     },
   });
 
-  // Mirror onto the Communication ledger and notify the other side.
+  if (internal) {
+    // Internal note: stays inside the team, no client mirror.
+    await notifyAdmins("INTERNAL_NOTE", `${input.authorName ?? "Staff"} noted on “${ref.label}”: ${input.body}`, { screen: "admin" });
+    return { comment, ref };
+  }
+
+  // Public comment: mirror onto the Communication ledger + notify the other side.
   await sendComm({
     tenantId: ref.tenantId,
     engagementId: ref.engagementId,

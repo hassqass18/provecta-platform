@@ -83,6 +83,9 @@ const ADMIN_ROLES = new Set(["SUPER_ADMIN", "ADMIN", "STAFF"]);
 export function isAppAdmin(user: AppUser | null): boolean {
   return !!user && ADMIN_ROLES.has(user.role);
 }
+export function isSuperAdmin(user: AppUser | null): boolean {
+  return !!user && (user.role === "SUPER_ADMIN" || user.role === "ADMIN");
+}
 
 /** Resolve an app user and require an admin/staff role (for /api/app/admin/*). */
 export async function getAdminAppUser(req: Request): Promise<AppUser | null> {
