@@ -106,7 +106,10 @@ model Milestone {
   engagement   Engagement @relation(fields: [engagementId], references: [id])
   title        String
   description  String?
+  detail       String?    // deep phase content (discovery, audit findings, CRM architecture & build…) — markdown
+  phaseSummary String?    // one-line "what this phase delivers"
   status       String     @default("PENDING") // PENDING | IN_PROGRESS | COMPLETED | BLOCKED
+  approvalStatus String   @default("NONE") // NONE | PENDING | APPROVED | CHANGES_REQUESTED — client sign-off
   dueDate      DateTime?
   baselineDate DateTime?  // P1B: planned date from the template dayOffset (for RAG/SPI)
   completedAt  DateTime?
@@ -139,9 +142,16 @@ model Deliverable {
   id           String     @id @default(cuid())
   engagementId String
   engagement   Engagement @relation(fields: [engagementId], references: [id])
+  milestoneId  String?    // nests this deliverable under a phase/milestone
   title        String
+  detail       String?    // the in-phase deliverable write-up (markdown)
+  kind         String     @default("DELIVERABLE") // DELIVERABLE | AUDIT | ARCHITECTURE | BUILD | REPORT
   version      String     @default("v1")
   isFinal      Boolean    @default(false)
+  clientVisible Boolean   @default(true)
+  approvalStatus String   @default("NONE") // NONE | PENDING | APPROVED | CHANGES_REQUESTED
+  status       String     @default("IN_PROGRESS") // IN_PROGRESS | DELIVERED
+  orderIndex   Int        @default(0)
   documentId   String?
   createdAt    DateTime   @default(now())
 }
@@ -155,6 +165,8 @@ model Document {
   engagement   Engagement? @relation(fields: [engagementId], references: [id])
   name         String
   kind         String      @default("DOCUMENT") // DOCUMENT | MEDIA | CONTRACT
+  milestoneId  String?     // optional: file this document under a phase/milestone
+  deliverableId String?    // optional: attach to a specific deliverable
   version      Int         @default(1)
   isFinal       Boolean    @default(false)
   signed        Boolean    @default(false)
@@ -399,6 +411,42 @@ model Communication {
   autonomyState String?
   status        String   @default("SENT")
   createdAt     DateTime @default(now())
+}
+
+// ── Collaboration: comments + approvals on milestones / deliverables / documents ──
+// Clients engage like Jira/Notion — comment, approve, reject, request changes —
+// and every action mirrors into the super-admin back office.
+model Comment {
+  id           String   @id @default(cuid())
+  tenantId     String
+  engagementId String?
+  targetType   String // MILESTONE | DELIVERABLE | DOCUMENT | ENGAGEMENT
+  targetId     String
+  authorType   String // CLIENT | STAFF | AGENT
+  authorId     String?
+  authorName   String?
+  body         String
+  createdAt    DateTime @default(now())
+
+  @@index([targetType, targetId])
+  @@index([tenantId])
+}
+
+model Approval {
+  id           String   @id @default(cuid())
+  tenantId     String
+  engagementId String?
+  targetType   String // MILESTONE | DELIVERABLE
+  targetId     String
+  decision     String // APPROVED | REJECTED | CHANGES_REQUESTED
+  note         String?
+  actorType    String // CLIENT | STAFF
+  actorId      String?
+  actorName    String?
+  createdAt    DateTime @default(now())
+
+  @@index([targetType, targetId])
+  @@index([tenantId])
 }
 
 // ── bRRAIn client agent: rolling conversation state per (tenant, channel, address) ──

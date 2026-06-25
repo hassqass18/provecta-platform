@@ -153,6 +153,7 @@ export async function getClientDashboardProjection(tenantId: string) {
     currency: raw.currency,
     milestones: raw.milestones.map((m) => ({
       id: m.id, title: m.title, description: m.description, status: m.status, dueDate: m.dueDate,
+      phaseSummary: m.phaseSummary, approvalStatus: m.approvalStatus, hasDetail: Boolean(m.detail),
     })),
     kpis: raw.kpis.map((k) => ({ id: k.id, label: k.label, value: k.value, unit: k.unit })),
     slas: raw.slas.map((s) => ({ id: s.id, metric: s.metric, target: s.target, status: s.status })),

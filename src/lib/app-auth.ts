@@ -79,6 +79,17 @@ export type AppUser = {
   tenantName: string | null;
 };
 
+const ADMIN_ROLES = new Set(["SUPER_ADMIN", "ADMIN", "STAFF"]);
+export function isAppAdmin(user: AppUser | null): boolean {
+  return !!user && ADMIN_ROLES.has(user.role);
+}
+
+/** Resolve an app user and require an admin/staff role (for /api/app/admin/*). */
+export async function getAdminAppUser(req: Request): Promise<AppUser | null> {
+  const user = await getAppUser(req);
+  return isAppAdmin(user) ? user : null;
+}
+
 function bearer(req: Request): string | null {
   const h = req.headers.get("authorization") || req.headers.get("Authorization");
   if (!h) return null;
