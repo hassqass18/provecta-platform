@@ -245,6 +245,9 @@ model Ticket {
   priority       String          @default("MEDIUM") // LOW | MEDIUM | HIGH
   proposedAction String?
   autonomyState  String          @default("SUGGEST") // SUGGEST | AUTO_WITH_REVIEW | AUTONOMOUS
+  assigneeId     String?         // staff user the ticket is assigned to
+  firstResponseAt DateTime?      // when staff/agent first replied (first-response SLA)
+  resolvedAt     DateTime?       // when moved to RESOLVED/CLOSED (resolution SLA)
   createdAt      DateTime        @default(now())
   messages       TicketMessage[]
 }
