@@ -2,8 +2,10 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { hash } from "@node-rs/argon2";
 import { prisma } from "@/lib/db";
 import { requireAdmin } from "@/lib/session";
+import { storeFile } from "@/server/storage";
 
 async function audit(actorId: string, action: string, entity: string, entityId?: string, meta?: string) {
   await prisma.auditLog.create({ data: { actorId, action, entity, entityId, meta } });
@@ -41,8 +43,52 @@ export async function createClient(formData: FormData) {
       { tenantId: t.id, kind: "STAGE_PROJECT", status: "PENDING", payload: { templateKey: "onboarding" } },
     ],
   });
+  // Optional: create the client's login so they can use the app immediately.
+  const contactEmail = str(formData, "contactEmail").toLowerCase();
+  const contactName = str(formData, "contactName");
+  let pwParam = "";
+  if (contactEmail && !(await prisma.user.findUnique({ where: { email: contactEmail } }))) {
+    const tempPassword = str(formData, "clientPassword") || `Provecta-${Math.random().toString(36).slice(2, 8)}`;
+    await prisma.user.create({
+      data: { email: contactEmail, name: contactName || name, passwordHash: await hash(tempPassword), role: "CLIENT", tenantId: t.id },
+    });
+    pwParam = `?login=${encodeURIComponent(contactEmail)}&pw=${encodeURIComponent(tempPassword)}`;
+  }
+  // Optional: capture consultation / discovery notes as the first transcript.
+  const notes = str(formData, "notes");
+  if (notes) {
+    await prisma.transcript.create({ data: { tenantId: t.id, title: `${name} — initial consultation`, body: notes, source: "DISCOVERY_CALL" } });
+  }
   await audit(admin.id, "CLIENT_CREATE", "Tenant", t.id, preferredChannel ? `${name} · ${preferredChannel}` : name);
   revalidatePath("/admin/clients");
+  redirect(`/admin/clients/${t.id}${pwParam}`);
+}
+
+// ── Document upload (web back office) ──────────────────────────────────
+export async function uploadClientDocument(formData: FormData) {
+  const admin = await requireAdmin();
+  const tenantId = str(formData, "tenantId");
+  const file = formData.get("file");
+  if (!tenantId || !(file instanceof File) || file.size === 0) return;
+
+  const name = str(formData, "name") || file.name || "document";
+  const kind = str(formData, "kind") || "DOCUMENT";
+  const engagementId = str(formData, "engagementId") || null;
+  const clientVisible = String(formData.get("clientVisible") ?? "on") !== "off";
+  const isFinal = formData.get("isFinal") != null;
+
+  const bytes = Buffer.from(await file.arrayBuffer());
+  const contentType = file.type || "application/octet-stream";
+  const stored = await storeFile(name, bytes, contentType);
+
+  const doc = await prisma.document.create({
+    data: {
+      tenantId, engagementId, name, kind, mimeType: contentType,
+      url: stored.ref, sizeBytes: stored.sizeBytes, isFinal, clientVisible, source: "HUMAN",
+    },
+  });
+  await audit(admin.id, "DOCUMENT_UPLOAD", "Document", doc.id, name);
+  revalidatePath(`/admin/clients/${tenantId}`);
 }
 
 // Approve a brain-pulled document for client visibility (client-approval finality).

@@ -46,9 +46,11 @@ export default async function ClientsPage() {
             ))}
           </tbody>
         </table>
-        <NewForm label="New client">
+        <NewForm label="Start a client engagement">
           <form action={createClient} className="flex flex-wrap items-end gap-2">
             <input name="name" required placeholder="Client / company name" className={`${AINPUT} max-w-xs`} />
+            <input name="contactName" placeholder="Contact name" className={`${AINPUT} max-w-xs`} />
+            <input name="contactEmail" type="email" placeholder="Contact email (creates their login)" className={`${AINPUT} max-w-xs`} />
             <select name="preferredChannel" defaultValue="" className={AINPUT} aria-label="Main communication channel">
               <option value="">Main channel…</option>
               <option value="WHATSAPP">WhatsApp</option>
@@ -57,11 +59,12 @@ export default async function ClientsPage() {
               <option value="OPEN">Open / any</option>
             </select>
             <input name="channelAddress" placeholder="Channel address (phone / email / id)" className={`${AINPUT} max-w-xs`} />
-            <button className={ABTN}>Create client</button>
+            <textarea name="notes" placeholder="Consultation / discovery notes (optional) — captured as the first transcript" className={`${AINPUT} h-20 w-full`} />
+            <button className={ABTN}>Start engagement</button>
           </form>
           <p className="mt-1.5 px-1 text-xs text-slate-500">
-            The main channel is the client&apos;s single point of contact — inbound there routes to them and becomes
-            their information source.
+            Creates the workspace, stages the onboarding engagement, and (with a contact email) the client&apos;s login.
+            Add documents &amp; materials on the client page. The main channel is their single point of contact.
           </p>
         </NewForm>
       </Card>

@@ -2,6 +2,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getClientOverview } from "@/server/client-data";
 import { Badge, Card, CardHeader, Stat, EmptyRow } from "@/components/ui";
+import { uploadClientDocument } from "@/server/crud";
+import { signDocPath } from "@/lib/doc-link";
 import {
   ENGAGEMENT_STATUS,
   MILESTONE_STATUS,
@@ -11,12 +13,20 @@ import {
   shortDate,
 } from "@/lib/types";
 
-export default async function ClientOverviewPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function ClientOverviewPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ login?: string; pw?: string }>;
+}) {
   const { id } = await params;
+  const sp = await searchParams;
   const data = await getClientOverview(id);
   if (!data) notFound();
 
   const { tenant, engagements, documents, tickets, aggregates } = data;
+  const hasBytes = (u: string | null | undefined) => !!u && (u.startsWith("db:") || u.startsWith("blob:"));
 
   // All milestones across engagements, tagged with their engagement name and
   // sorted by due date (nulls last) for the timeline.
@@ -30,6 +40,12 @@ export default async function ClientOverviewPage({ params }: { params: Promise<{
 
   return (
     <div className="space-y-6">
+      {sp.login && sp.pw ? (
+        <div className="rounded-lg border border-emerald-300 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+          <span className="font-semibold">Client login created.</span> Share securely — shown once:
+          <span className="ml-2 font-mono">{sp.login}</span> / <span className="font-mono">{sp.pw}</span>
+        </div>
+      ) : null}
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-xl font-bold text-slate-900">{tenant.name}</h1>
@@ -119,6 +135,19 @@ export default async function ClientOverviewPage({ params }: { params: Promise<{
 
       <Card>
         <CardHeader title={`Documents, deliverables & contracts (${documents.length})`} />
+        <form action={uploadClientDocument} encType="multipart/form-data" className="flex flex-wrap items-center gap-2 border-b border-slate-100 px-5 py-3">
+          <input type="hidden" name="tenantId" value={tenant.id} />
+          <input type="file" name="file" required className="text-sm text-slate-600 file:mr-3 file:rounded-md file:border-0 file:bg-[var(--color-brand)] file:px-3 file:py-1.5 file:text-white" />
+          <input name="name" placeholder="Display name (optional)" className="rounded-md border border-slate-200 px-2 py-1.5 text-sm" />
+          <select name="kind" className="rounded-md border border-slate-200 px-2 py-1.5 text-sm">
+            <option value="DOCUMENT">Document</option>
+            <option value="CONTRACT">Contract</option>
+            <option value="MEDIA">Media</option>
+          </select>
+          <label className="flex items-center gap-1.5 text-sm text-slate-600"><input type="checkbox" name="clientVisible" defaultChecked /> Client-visible</label>
+          <label className="flex items-center gap-1.5 text-sm text-slate-600"><input type="checkbox" name="isFinal" /> Final</label>
+          <button className="rounded-lg bg-[var(--color-brand)] px-3 py-1.5 text-sm font-semibold text-white">Upload</button>
+        </form>
         <table className="w-full text-sm">
           <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
             <tr>
@@ -144,7 +173,12 @@ export default async function ClientOverviewPage({ params }: { params: Promise<{
                     <Badge tone={d.source === "BRAIN" ? "info" : "neutral"}>{d.source}</Badge>
                   </td>
                   <td className="px-2 py-3 text-slate-600">{d.engagementName}</td>
-                  <td className="px-5 py-3 text-right text-slate-500">{shortDate(d.createdAt)}</td>
+                  <td className="px-5 py-3 text-right text-slate-500">
+                    {hasBytes(d.url) ? (
+                      <a href={signDocPath(d.id)} target="_blank" rel="noreferrer" className="mr-3 text-[var(--color-brand)] hover:underline">Open</a>
+                    ) : null}
+                    {shortDate(d.createdAt)}
+                  </td>
                 </tr>
               ))
             )}

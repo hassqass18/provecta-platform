@@ -13,6 +13,7 @@ const schema = z.object({
   contactName: z.string().trim().min(1).max(120),
   contactEmail: z.string().email(),
   password: z.string().min(6).max(100).optional(),
+  notes: z.string().trim().max(100000).optional(), // consultation/discovery notes → transcript
 });
 
 function slugify(s: string): string {
@@ -50,6 +51,19 @@ export async function POST(req: Request) {
     engagementId = staged.engagementId;
   } catch {
     // Template missing → workspace + login still created; staging can be retried.
+  }
+
+  // Capture consultation/discovery notes as the engagement's first transcript.
+  if (parsed.data.notes) {
+    await prisma.transcript.create({
+      data: {
+        tenantId: tenant.id,
+        engagementId,
+        title: `${companyName} — initial consultation`,
+        body: parsed.data.notes,
+        source: "DISCOVERY_CALL",
+      },
+    });
   }
 
   return NextResponse.json({

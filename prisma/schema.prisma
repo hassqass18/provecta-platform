@@ -165,6 +165,7 @@ model Document {
   engagement   Engagement? @relation(fields: [engagementId], references: [id])
   name         String
   kind         String      @default("DOCUMENT") // DOCUMENT | MEDIA | CONTRACT
+  mimeType     String?     // content type of the uploaded file
   milestoneId  String?     // optional: file this document under a phase/milestone
   deliverableId String?    // optional: attach to a specific deliverable
   version      Int         @default(1)
@@ -259,6 +260,16 @@ model TicketMessage {
   author    String // CLIENT | AGENT | SYSTEM
   body      String
   createdAt DateTime @default(now())
+}
+
+// ── DB-backed file store (fallback when Vercel Blob isn't keyed) ───────
+model FileBlob {
+  id          String   @id @default(cuid())
+  name        String
+  contentType String   @default("application/octet-stream")
+  sizeBytes   Int      @default(0)
+  data        Bytes
+  createdAt   DateTime @default(now())
 }
 
 // ── Mobile push (native client app) ───────────────────────────────────
