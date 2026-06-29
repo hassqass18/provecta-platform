@@ -4,7 +4,8 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
 import { requireAdmin, requireUser } from "@/lib/session";
 import { recordApproval } from "@/lib/autonomy";
-import { draftReply } from "@/lib/brain";
+import { draftReply, generateEngagementPlan } from "@/lib/brain";
+import { stageEngagementPlan } from "@/server/staging";
 import { emitEvent } from "@/lib/events/emit";
 import { emitClientUpdate } from "@/server/notifications/fanout";
 import { recomputeSnapshot } from "@/server/dashboards/metrics";
@@ -62,10 +63,71 @@ export async function setEngagementStatus(formData: FormData) {
   const admin = await requireAdmin();
   const id = String(formData.get("id"));
   const status = String(formData.get("status"));
+  const before = await prisma.engagement.findUnique({ where: { id }, select: { status: true } });
   await prisma.engagement.update({ where: { id }, data: { status } });
   await audit(admin.id, "ENGAGEMENT_STATUS", "Engagement", id, status);
+
+  // On proposal accept (→ ACTIVE), have bRRAIn generate the tailored delivery
+  // plan if one hasn't been generated yet. Best-effort: never block the status
+  // change on it.
+  if (status === "ACTIVE" && before?.status !== "ACTIVE") {
+    const planned = await prisma.milestone.count({ where: { engagementId: id, source: "BRAIN" } });
+    if (planned === 0) {
+      await generateAndStagePlan(id, admin.id).catch(() => {});
+    }
+  }
+
   revalidatePath(`/admin/engagements/${id}`);
   revalidatePath("/admin/engagements");
+}
+
+// Assemble an engagement's scope, ask bRRAIn for the tailored plan, and stage it.
+// Shared by the explicit "Generate plan" action and the auto-trigger on accept.
+async function generateAndStagePlan(engagementId: string, actorId: string | null) {
+  const eng = await prisma.engagement.findUnique({
+    where: { id: engagementId },
+    include: { charter: true, proposal: true, tenant: { select: { id: true, name: true } } },
+  });
+  if (!eng) return null;
+
+  const transcripts = await prisma.transcript.findMany({
+    where: { OR: [{ engagementId }, { tenantId: eng.tenantId }] },
+    orderBy: { createdAt: "desc" },
+    take: 3,
+  });
+  const transcript = transcripts.map((t) => `# ${t.title}\n${t.body}`).join("\n\n").slice(0, 16000);
+
+  const { plan, provider } = await generateEngagementPlan(
+    {
+      name: eng.name,
+      summary: eng.summary,
+      budgetMinor: eng.budgetMinor,
+      currency: eng.currency,
+      charter: eng.charter,
+      proposalMd: eng.proposal?.bodyMd ?? null,
+      transcript: transcript || null,
+    },
+    { engagementId },
+  );
+
+  const result = await stageEngagementPlan(engagementId, plan);
+  await audit(
+    actorId,
+    "ENGAGEMENT_PLAN_STAGED",
+    "Engagement",
+    engagementId,
+    `${provider} · ${result.milestones} phases · created=${result.created}`,
+  );
+  return result;
+}
+
+// Explicit "Generate plan with bRRAIn" button on the engagement page.
+export async function generateEngagementPlanAction(formData: FormData) {
+  const admin = await requireAdmin();
+  const id = String(formData.get("id"));
+  if (!id) return;
+  await generateAndStagePlan(id, admin.id);
+  revalidatePath(`/admin/engagements/${id}`);
 }
 
 export async function approveTicketAction(formData: FormData) {

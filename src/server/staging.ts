@@ -1,5 +1,6 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
+import type { EngagementPlan } from "@/lib/brain";
 
 const DAY_MS = 86_400_000;
 
@@ -153,4 +154,139 @@ export async function stageProjectFromTemplate(
     }
     throw err;
   }
+}
+
+export interface StagePlanResult {
+  created: boolean;
+  milestones: number;
+  deliverables: number;
+  tasks: number;
+  kpis: number;
+}
+
+/**
+ * Install a bRRAIn-generated EngagementPlan into an engagement (P3): milestones
+ * (source=BRAIN) with their nested deliverables + tasks, plus KPIs. Replaces the
+ * pristine template scaffold — the generic onboarding milestones/KPIs that were
+ * auto-staged (status PENDING, with a baselineDate, no tasks) are cleared so the
+ * tailored plan takes their place. Human-touched artifacts (completed phases,
+ * phases with tasks, edited KPIs) are never removed.
+ *
+ * Idempotent: if the engagement already has BRAIN-sourced milestones, this is a
+ * no-op returning `created: false` (re-generation must be explicit).
+ */
+export async function stageEngagementPlan(
+  engagementId: string,
+  plan: EngagementPlan,
+): Promise<StagePlanResult> {
+  const engagement = await prisma.engagement.findUnique({
+    where: { id: engagementId },
+    select: { id: true, startDate: true },
+  });
+  if (!engagement) throw new Error(`Engagement "${engagementId}" not found`);
+
+  const alreadyPlanned = await prisma.milestone.count({
+    where: { engagementId, source: "BRAIN" },
+  });
+  if (alreadyPlanned > 0) {
+    return { created: false, milestones: 0, deliverables: 0, tasks: 0, kpis: 0 };
+  }
+
+  const start = engagement.startDate ?? new Date();
+  let deliverables = 0;
+  let tasks = 0;
+
+  await prisma.$transaction(async (tx) => {
+    // Clear the pristine template scaffold (only): template milestones carry a
+    // baselineDate, are still PENDING, and have no tasks. Their tasks (none
+    // expected) are removed first to satisfy the FK.
+    const scaffold = await tx.milestone.findMany({
+      where: { engagementId, status: "PENDING", baselineDate: { not: null } },
+      select: { id: true, _count: { select: { tasks: true } } },
+    });
+    const removable = scaffold.filter((m) => m._count.tasks === 0).map((m) => m.id);
+    if (removable.length) {
+      await tx.deliverable.deleteMany({ where: { milestoneId: { in: removable } } });
+      await tx.milestone.deleteMany({ where: { id: { in: removable } } });
+    }
+    // Clear pristine template KPIs (untouched, value 0).
+    await tx.kpi.deleteMany({ where: { engagementId, value: 0, source: "HUMAN" } });
+
+    for (let i = 0; i < plan.phases.length; i++) {
+      const phase = plan.phases[i];
+      const milestone = await tx.milestone.create({
+        data: {
+          engagementId,
+          title: phase.title,
+          phaseSummary: phase.summary ?? null,
+          status: "PENDING",
+          baselineDate: new Date(start.getTime() + phase.dayOffset * DAY_MS),
+          dueDate: new Date(start.getTime() + phase.dayOffset * DAY_MS),
+          orderIndex: i + 1,
+          clientVisible: phase.clientVisible,
+          source: "BRAIN",
+        },
+      });
+
+      if (phase.deliverables.length) {
+        await tx.deliverable.createMany({
+          data: phase.deliverables.map((d, di) => ({
+            engagementId,
+            milestoneId: milestone.id,
+            title: d.title,
+            detail: d.detail ?? null,
+            kind: d.kind,
+            orderIndex: di + 1,
+            clientVisible: phase.clientVisible,
+          })),
+        });
+        deliverables += phase.deliverables.length;
+      }
+
+      if (phase.tasks.length) {
+        await tx.task.createMany({
+          data: phase.tasks.map((t) => ({
+            engagementId,
+            milestoneId: milestone.id,
+            title: t.title,
+            priority: t.priority,
+            source: "AGENT",
+          })),
+        });
+        tasks += phase.tasks.length;
+      }
+    }
+
+    if (plan.kpis.length) {
+      await tx.kpi.createMany({
+        data: plan.kpis.map((k) => ({
+          engagementId,
+          label: k.label,
+          value: 0,
+          unit: k.unit ?? null,
+          target: k.target ?? null,
+          source: "BRAIN",
+        })),
+      });
+    }
+  });
+
+  await prisma.auditLog
+    .create({
+      data: {
+        action: "ENGAGEMENT_PLAN_GENERATED",
+        entity: "Engagement",
+        entityId: engagementId,
+        meta: `${plan.phases.length} phases · ${deliverables} deliverables · ${tasks} tasks · ${plan.kpis.length} KPIs`,
+      },
+    })
+    .catch(() => {});
+
+  return {
+    created: true,
+    milestones: plan.phases.length,
+    deliverables,
+    tasks,
+    kpis: plan.kpis.length,
+  };
 }

@@ -89,10 +89,16 @@ function retryAfterSeconds(data: unknown): number | undefined {
   return undefined;
 }
 
+export type ToolChoice =
+  | { type: "auto" }
+  | { type: "any" }
+  | { type: "tool"; name: string };
+
 export async function chat(input: {
   system: string;
   messages: ChatMessage[];
   tools?: ToolDef[];
+  toolChoice?: ToolChoice;
   maxTokens?: number;
   temperature?: number;
 }): Promise<ChatResponse> {
@@ -116,6 +122,7 @@ export async function chat(input: {
     messages: input.messages,
   };
   if (input.tools && input.tools.length) baseBody.tools = input.tools;
+  if (input.toolChoice) baseBody.tool_choice = input.toolChoice;
 
   // Try primary model with retries.
   let lastErr: string | null = null;

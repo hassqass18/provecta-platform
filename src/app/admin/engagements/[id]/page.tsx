@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { getEngagementDetail } from "@/server/data";
-import { advanceMilestone, setEngagementStatus } from "@/server/actions";
+import { advanceMilestone, setEngagementStatus, generateEngagementPlanAction } from "@/server/actions";
 import { addMilestone, addTask, addKpi, addSla, createInvoice } from "@/server/crud";
 import {
   editEngagementFull,
@@ -44,10 +44,15 @@ function dateInput(d: Date | string | null | undefined): string {
 const DEL_BTN =
   "rounded-lg border border-[#ff3b30]/30 px-3 py-2 text-sm font-medium text-[#d70015] hover:bg-[#ff3b30]/10";
 
+// bRRAIn plan generation can call the LLM — give the server action room to run.
+export const maxDuration = 60;
+
 export default async function EngagementDetail({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const e = await getEngagementDetail(id);
   if (!e) notFound();
+
+  const planExists = e.milestones.some((m) => m.source === "BRAIN");
 
   return (
     <div className="space-y-6">
@@ -83,6 +88,27 @@ export default async function EngagementDetail({ params }: { params: Promise<{ i
         <Stat label="Start" value={shortDate(e.startDate)} />
         <Stat label="Target end" value={shortDate(e.targetEndDate)} />
       </div>
+
+      {/* ── Generate the delivery plan with bRRAIn (P3) ── */}
+      <Card>
+        <CardHeader title="bRRAIn delivery plan" />
+        <div className="flex flex-wrap items-center justify-between gap-3 p-5">
+          <p className="max-w-xl text-sm text-slate-500">
+            {planExists
+              ? "A tailored plan has been generated for this engagement. Re-generating is blocked while a bRRAIn plan exists — edit the phases/KPIs below, or clear them first."
+              : "Generate phases, deliverables, tasks and KPIs tailored to this engagement's scope — from its proposal, charter and discovery notes. Review and adjust before sharing with the client."}
+          </p>
+          <form action={generateEngagementPlanAction}>
+            <input type="hidden" name="id" value={e.id} />
+            <button
+              className="rounded-lg bg-[var(--color-brand)] px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-40"
+              disabled={planExists}
+            >
+              Generate plan with bRRAIn
+            </button>
+          </form>
+        </div>
+      </Card>
 
       {/* ── Edit engagement (full: dates, budget, currency, status) ── */}
       <Card>
