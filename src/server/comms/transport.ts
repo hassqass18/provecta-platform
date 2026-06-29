@@ -10,6 +10,8 @@
  * failure surfaces as `{ sent: false, error }` rather than propagating.
  */
 
+import { sendEmail } from "@/lib/email/resend";
+
 export interface SendResult {
   sent: boolean;
   gated?: boolean;
@@ -119,8 +121,19 @@ export async function sendOnChannel(
       // reads) + via Expo push (notifications/fanout) — no third-party token.
       return { sent: false, gated: true };
     case "email":
+      return sendEmailChannel(address, body);
     case "portal":
     default:
       return { sent: false, gated: true };
   }
+}
+
+// EMAIL channel — real outbound via Resend (gated on RESEND_API_KEY). Channel
+// sends carry only a body; transactional emails with subjects/links are sent
+// directly via sendEmail() elsewhere (proposals, credentials, contracts).
+async function sendEmailChannel(address: string, body: string): Promise<SendResult> {
+  const r = await sendEmail({ to: address, subject: "Update from Provecta Group", text: body });
+  if (r.gated) return { sent: false, gated: true };
+  if (!r.sent) return { sent: false, error: r.error };
+  return { sent: true, providerMessageId: r.id };
 }

@@ -17,11 +17,13 @@ const POLICIES: PolicySeed[] = [
   { actionCategory: "milestone-notification", state: "SUGGEST", riskClass: "REVERSIBLE", threshold: 10 },
   { actionCategory: "ticket-reply", state: "SUGGEST", riskClass: "REVERSIBLE", threshold: 12 },
   // bRRAIn generation (internal drafts; operator reviews before anything ships).
+  { actionCategory: "prospect-research", state: "SUGGEST", riskClass: "REVERSIBLE", threshold: 10 },
   { actionCategory: "engagement-planning", state: "SUGGEST", riskClass: "REVERSIBLE", threshold: 12 },
   { actionCategory: "deliverable-drafting", state: "SUGGEST", riskClass: "REVERSIBLE", threshold: 12 },
   // Higher bar: outbound proposals carry more brand/commercial weight.
   { actionCategory: "proposal-send", state: "SUGGEST", riskClass: "REVERSIBLE", threshold: 20 },
   // Never auto-promotes: financial + regulated + irreversible categories.
+  { actionCategory: "contract-issue", state: "SUGGEST", riskClass: "REGULATED", threshold: 9999 },
   { actionCategory: "invoice-issue", state: "SUGGEST", riskClass: "REGULATED", threshold: 9999 },
   { actionCategory: "payment", state: "SUGGEST", riskClass: "IRREVERSIBLE", threshold: 9999 },
   { actionCategory: "envelope-send", state: "SUGGEST", riskClass: "REGULATED", threshold: 9999 },

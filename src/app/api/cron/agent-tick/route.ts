@@ -4,6 +4,10 @@ import { prisma } from "@/lib/db";
 import { ingestTenantFinals } from "@/server/brain/ingest";
 import { stageProjectFromTemplate } from "@/server/staging";
 import { processEvent } from "@/server/agent/runner";
+import { runProspectResearch } from "@/server/research/run";
+
+// Research jobs run the LLM (web_search, ~50s) — allow the full window.
+export const maxDuration = 60;
 
 // P1C outbox worker: drains PENDING IngestJobs (brain pulls + project staging +
 // git-sync reconciles). Idempotent handlers; optimistic claim avoids double-drain
@@ -35,6 +39,13 @@ export async function GET(req: Request) {
       } else if (job.kind === "GIT_SYNC") {
         const tenants = await prisma.tenant.findMany({ where: { brainFolder: { not: null } } });
         for (const t of tenants) await ingestTenantFinals(t.id);
+      } else if (job.kind === "RESEARCH" && job.tenantId) {
+        const p = (job.payload as { company?: string; contact?: string; domain?: string; engagementId?: string } | null) ?? {};
+        await runProspectResearch({
+          tenantId: job.tenantId,
+          engagementId: p.engagementId ?? null,
+          input: { company: p.company ?? "Prospect", contact: p.contact ?? null, domain: p.domain ?? null },
+        });
       }
       await prisma.ingestJob.update({ where: { id: job.id }, data: { status: "DONE" } });
       results.push({ id: job.id, kind: job.kind, status: "DONE" });

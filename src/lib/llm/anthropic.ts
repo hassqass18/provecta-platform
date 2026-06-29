@@ -118,6 +118,7 @@ export async function chat(input: {
   temperature?: number;
   budgetMs?: number; // overall wall-clock ceiling for the whole call incl. retries
   perRequestTimeoutMs?: number; // per-attempt ceiling; raise for long generations
+  serverTools?: Record<string, unknown>[]; // Anthropic server tools (e.g. web_search), passed through as-is
 }): Promise<ChatResponse> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) throw new Error("ANTHROPIC_API_KEY not configured");
@@ -143,7 +144,8 @@ export async function chat(input: {
     system: systemBlocks,
     messages: input.messages,
   };
-  if (input.tools && input.tools.length) baseBody.tools = input.tools;
+  const allTools = [...(input.tools ?? []), ...(input.serverTools ?? [])];
+  if (allTools.length) baseBody.tools = allTools;
   if (input.toolChoice) baseBody.tool_choice = input.toolChoice;
 
   // Overall wall-clock budget so the retry/backoff loop can never hold a

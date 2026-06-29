@@ -79,13 +79,16 @@ model Proposal {
   id           String     @id @default(cuid())
   engagementId String     @unique
   engagement   Engagement @relation(fields: [engagementId], references: [id])
-  status       String     @default("DRAFT") // DRAFT | SENT | APPROVED | DECLINED
-  amountMinor  Int        @default(0)
-  currency     String     @default("USD")
-  bodyMd       String?
-  sentAt       DateTime?
-  approvedAt   DateTime?
-  createdAt    DateTime   @default(now())
+  status               String     @default("DRAFT") // DRAFT | SENT | APPROVED | DECLINED
+  amountMinor          Int        @default(0)
+  currency             String     @default("USD")
+  bodyMd               String?
+  sentAt               DateTime?
+  approvedAt           DateTime?
+  declinedAt           DateTime?
+  acceptToken          String?    @unique // opaque token for the public accept link
+  acceptTokenExpiresAt DateTime?
+  createdAt            DateTime   @default(now())
 }
 
 model Charter {
@@ -164,7 +167,7 @@ model Document {
   engagementId String?
   engagement   Engagement? @relation(fields: [engagementId], references: [id])
   name         String
-  kind         String      @default("DOCUMENT") // DOCUMENT | MEDIA | CONTRACT
+  kind         String      @default("DOCUMENT") // DOCUMENT | MEDIA | CONTRACT | RESEARCH | TRANSCRIPT
   mimeType     String?     // content type of the uploaded file
   milestoneId  String?     // optional: file this document under a phase/milestone
   deliverableId String?    // optional: attach to a specific deliverable
@@ -497,7 +500,7 @@ model EngagementMetricSnapshot {
 model IngestJob {
   id        String   @id @default(cuid())
   tenantId  String?
-  kind      String // PULL_FINALS | STAGE_PROJECT | GIT_SYNC
+  kind      String // PULL_FINALS | STAGE_PROJECT | GIT_SYNC | RESEARCH
   status    String   @default("PENDING") // PENDING | DONE | FAILED
   payload   Json?
   attempts  Int      @default(0)
