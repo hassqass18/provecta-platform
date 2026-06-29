@@ -170,7 +170,7 @@ export default async function ClientOverviewPage({
                   </td>
                   <td className="px-2 py-3 text-slate-500">{d.kind}</td>
                   <td className="px-2 py-3">
-                    <Badge tone={d.source === "BRAIN" ? "info" : "neutral"}>{d.source}</Badge>
+                    <Badge tone={d.source === "BRAIN" ? "info" : "neutral"}>{d.source === "BRAIN" ? "bRRAIn" : d.source}</Badge>
                   </td>
                   <td className="px-2 py-3 text-slate-600">{d.engagementName}</td>
                   <td className="px-5 py-3 text-right text-slate-500">

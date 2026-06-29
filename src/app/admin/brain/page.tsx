@@ -22,7 +22,7 @@ export default async function BrainPage() {
         <div>
           <h1 className="text-xl font-bold text-slate-900">bRRAIn — proposal from transcript</h1>
           <p className="mt-1 text-sm text-slate-500">
-            Record the discovery call → the brain drafts a proposal → engage the client.
+            Record the discovery call → bRRAIn drafts a proposal → engage the client.
           </p>
         </div>
         <Badge tone={provider === "STUB" ? "warn" : "success"}>
@@ -58,7 +58,7 @@ export default async function BrainPage() {
       <Card>
         <CardHeader title={`bRRAIn documents awaiting approval (${pendingDocs.length})`} />
         <p className="px-5 pt-3 text-xs text-slate-500">
-          Pulled from the brain as FINAL but hidden from the client until you approve (client-approval finality).
+          Pulled from bRRAIn as FINAL but hidden from the client until you approve (client-approval finality).
         </p>
         <ul className="divide-y divide-slate-100">
           {pendingDocs.map((d) => (
@@ -66,7 +66,7 @@ export default async function BrainPage() {
               <div>
                 <div className="text-sm font-medium text-slate-800">{d.name}</div>
                 <div className="text-xs text-slate-500">
-                  {d.tenant.name} · <Badge tone="info">BRAIN</Badge> · {shortDate(d.createdAt)}
+                  {d.tenant.name} · <Badge tone="info">bRRAIn</Badge> · {shortDate(d.createdAt)}
                 </div>
               </div>
               <form action={approveDocument}>

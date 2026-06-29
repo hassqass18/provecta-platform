@@ -23,7 +23,7 @@ export async function createProposalFromTranscript(formData: FormData) {
   if (!tenant) return;
 
   await prisma.transcript.create({ data: { tenantId, title, body, source: "DISCOVERY_CALL" } });
-  const { bodyMd, suggestedBudgetMinor } = proposalFromTranscript(title, body);
+  const { bodyMd, suggestedBudgetMinor } = await proposalFromTranscript(title, body);
 
   const count = await prisma.engagement.count();
   const code = `PRV-${tenant.slug.slice(0, 3).toUpperCase()}-${String(count + 1).padStart(3, "0")}`;
@@ -34,7 +34,7 @@ export async function createProposalFromTranscript(formData: FormData) {
       name: title,
       code,
       status: "PROPOSED",
-      summary: "Drafted from discovery transcript by the brain.",
+      summary: "Drafted from the discovery transcript by bRRAIn.",
       budgetMinor: suggestedBudgetMinor,
       currency: "USD",
       proposal: { create: { status: "DRAFT", amountMinor: suggestedBudgetMinor, currency: "USD", bodyMd } },
