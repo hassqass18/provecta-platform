@@ -22,7 +22,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const user = await prisma.user.findUnique({
           where: { email: parsed.data.email.toLowerCase() },
         });
-        if (!user) return null;
+        if (!user || user.disabled) return null;
         const ok = await verify(user.passwordHash, parsed.data.password).catch(() => false);
         if (!ok) return null;
         return {

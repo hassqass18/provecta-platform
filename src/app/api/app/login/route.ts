@@ -30,6 +30,9 @@ export async function POST(req: Request) {
   if (!user || !ok) {
     return NextResponse.json({ error: "Invalid email or password." }, { status: 401 });
   }
+  if (user.disabled) {
+    return NextResponse.json({ error: "This account has been disabled. Contact Provecta Group." }, { status: 403 });
+  }
 
   const token = signAppToken(user.id);
   return NextResponse.json({

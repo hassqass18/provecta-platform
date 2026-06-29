@@ -38,6 +38,8 @@ model User {
   name          String?
   passwordHash  String
   role          String         @default("CLIENT") // SUPER_ADMIN | ADMIN | STAFF | CLIENT
+  disabled      Boolean        @default(false) // blocked out — can't log in, existing sessions rejected
+  disabledAt    DateTime?
   tenantId      String?
   tenant        Tenant?        @relation(fields: [tenantId], references: [id])
   createdAt     DateTime       @default(now())

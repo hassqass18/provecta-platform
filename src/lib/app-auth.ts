@@ -114,7 +114,7 @@ export async function getAppUser(req: Request): Promise<AppUser | null> {
     where: { id: payload.sub },
     include: { tenant: { select: { id: true, name: true } } },
   });
-  if (!user) return null;
+  if (!user || user.disabled) return null; // blocked users are rejected immediately (every request re-loads)
   return {
     id: user.id,
     email: user.email,

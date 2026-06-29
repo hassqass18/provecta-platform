@@ -11,7 +11,7 @@ export async function GET(req: Request) {
   const users = await prisma.user.findMany({
     where: { role: { in: ["SUPER_ADMIN", "ADMIN", "STAFF"] } },
     orderBy: { createdAt: "asc" },
-    select: { id: true, name: true, email: true, role: true },
+    select: { id: true, name: true, email: true, role: true, disabled: true },
   });
   return NextResponse.json({ team: users, canManage: isSuperAdmin(admin) });
 }

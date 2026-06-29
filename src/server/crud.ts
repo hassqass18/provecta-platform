@@ -8,6 +8,9 @@ import { requireAdmin } from "@/lib/session";
 import { storeFile } from "@/server/storage";
 import { deleteTenant } from "@/server/tenant/delete";
 import { kickAgentTick } from "@/lib/agent-kick";
+import { resetUserPassword, setUserBlocked } from "@/server/users/manage";
+
+const SUPER_ROLES = new Set(["SUPER_ADMIN", "ADMIN"]);
 
 async function audit(actorId: string, action: string, entity: string, entityId?: string, meta?: string) {
   await prisma.auditLog.create({ data: { actorId, action, entity, entityId, meta } });
@@ -117,6 +120,34 @@ export async function deleteClient(formData: FormData) {
   if (r.ok) await audit(admin.id, "CLIENT_DELETE", "Tenant", tenantId, r.name);
   revalidatePath("/admin/clients");
   redirect("/admin/clients");
+}
+
+// ── User access controls (SUPER_ADMIN / ADMIN) ─────────────────────────
+export async function resetUserPasswordAction(formData: FormData) {
+  const admin = await requireAdmin();
+  if (!SUPER_ROLES.has(admin.role)) return;
+  const userId = str(formData, "userId");
+  const returnTo = str(formData, "returnTo") || "/admin/users";
+  if (!userId) return;
+  const r = await resetUserPassword(userId);
+  if (r.ok) {
+    await audit(admin.id, "USER_PASSWORD_RESET", "User", userId, r.email);
+    redirect(`${returnTo}?pwuser=${encodeURIComponent(r.email!)}&pw=${encodeURIComponent(r.password!)}`);
+  }
+  redirect(returnTo);
+}
+
+export async function setUserBlockedAction(formData: FormData) {
+  const admin = await requireAdmin();
+  if (!SUPER_ROLES.has(admin.role)) return;
+  const userId = str(formData, "userId");
+  const blocked = str(formData, "blocked") === "true";
+  const returnTo = str(formData, "returnTo") || "/admin/users";
+  if (!userId || userId === admin.id) return; // never block yourself
+  await setUserBlocked(userId, blocked);
+  await audit(admin.id, blocked ? "USER_BLOCKED" : "USER_UNBLOCKED", "User", userId);
+  revalidatePath(returnTo);
+  redirect(returnTo);
 }
 
 // ── Document upload (web back office) ──────────────────────────────────
