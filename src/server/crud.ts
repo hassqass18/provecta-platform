@@ -7,6 +7,7 @@ import { prisma } from "@/lib/db";
 import { requireAdmin } from "@/lib/session";
 import { storeFile } from "@/server/storage";
 import { deleteTenant } from "@/server/tenant/delete";
+import { kickAgentTick } from "@/lib/agent-kick";
 
 async function audit(actorId: string, action: string, entity: string, entityId?: string, meta?: string) {
   await prisma.auditLog.create({ data: { actorId, action, entity, entityId, meta } });
@@ -100,6 +101,7 @@ export async function createClient(formData: FormData) {
     }
   }
   await audit(admin.id, "CLIENT_CREATE", "Tenant", t.id, preferredChannel ? `${name} · ${preferredChannel}` : name);
+  kickAgentTick(); // drain the staging (+ proposal if a transcript was provided) now
   revalidatePath("/admin/clients");
   redirect(`/admin/clients/${t.id}${pwParam}`);
 }

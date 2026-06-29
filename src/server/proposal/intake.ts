@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db";
+import { kickAgentTick } from "@/lib/agent-kick";
 
 export interface ProspectInput {
   company: string;
@@ -66,6 +67,7 @@ export async function createProspect(
   await prisma.auditLog
     .create({ data: { actorId, action: "PROSPECT_INTAKE", entity: "Engagement", entityId: eng.id, meta: code } })
     .catch(() => {});
+  kickAgentTick(); // drain research → proposal now (no waiting for the daily cron)
 
   return { tenantId: tenant.id, engagementId: eng.id, proposalId: eng.proposal?.id ?? null, code };
 }

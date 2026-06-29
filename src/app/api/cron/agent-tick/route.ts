@@ -7,6 +7,7 @@ import { processEvent } from "@/server/agent/runner";
 import { runProspectResearch } from "@/server/research/run";
 import { generateProposalForEngagement } from "@/server/proposal/generate";
 import { runContractIssue } from "@/server/contract/issue";
+import { kickAgentTick } from "@/lib/agent-kick";
 
 // Research / proposal jobs run the LLM (~50s) — allow the full window.
 export const maxDuration = 60;
@@ -37,7 +38,17 @@ export async function GET(req: Request) {
         await ingestTenantFinals(job.tenantId);
       } else if (job.kind === "STAGE_PROJECT" && job.tenantId) {
         const templateKey = (job.payload as { templateKey?: string } | null)?.templateKey ?? "onboarding";
-        await stageProjectFromTemplate(job.tenantId, templateKey);
+        const staged = await stageProjectFromTemplate(job.tenantId, templateKey);
+        // If a discovery transcript was captured at intake, draft a proposal for
+        // the operator to review (so onboarding-with-a-transcript also produces
+        // a proposal, matching the funnel). Skips if a proposal already exists.
+        const hasTranscript = await prisma.transcript.count({ where: { tenantId: job.tenantId } });
+        if (staged?.engagementId && hasTranscript > 0) {
+          const existing = await prisma.proposal.findFirst({ where: { engagementId: staged.engagementId }, select: { bodyMd: true } });
+          if (!existing?.bodyMd) {
+            await prisma.ingestJob.create({ data: { tenantId: job.tenantId, kind: "PROPOSAL", status: "PENDING", payload: { engagementId: staged.engagementId } } });
+          }
+        }
       } else if (job.kind === "GIT_SYNC") {
         const tenants = await prisma.tenant.findMany({ where: { brainFolder: { not: null } } });
         for (const t of tenants) await ingestTenantFinals(t.id);
@@ -87,6 +98,17 @@ export async function GET(req: Request) {
       await prisma.domainEvent.update({ where: { id: ev.id }, data: { status: "FAILED", lastError: String(e) } });
       agentRuns.push({ event: ev.type, runStatus: "FAILED" });
     }
+  }
+
+  // Self-chain: if this round did work and the queue still has PENDING items
+  // (e.g. a RESEARCH job just enqueued a PROPOSAL job), fire another tick so the
+  // chain drains without waiting for the daily cron.
+  const processed = results.length + agentRuns.length;
+  if (processed > 0) {
+    const pending =
+      (await prisma.ingestJob.count({ where: { status: "PENDING" } })) +
+      (await prisma.domainEvent.count({ where: { status: "PENDING" } }));
+    if (pending > 0) kickAgentTick();
   }
 
   return NextResponse.json({ ok: true, drained: results.length, results, agentRuns });

@@ -5,6 +5,7 @@ import { prisma } from "@/lib/db";
 import { activateEngagementOnAccept } from "@/server/engagement/plan";
 import { notifyOperators } from "@/server/notifications/fanout";
 import { sendEmail, emailShell, mdToEmailHtml } from "@/lib/email/resend";
+import { kickAgentTick } from "@/lib/agent-kick";
 
 // Public proposal acceptance (token-gated, no login). The pivot of the funnel:
 // APPROVE the proposal → activate the engagement (+ stage plan) → mint the
@@ -63,6 +64,7 @@ export async function POST(_req: Request, { params }: { params: Promise<{ token:
       .create({ data: { action: "PROPOSAL_ACCEPTED", entity: "Proposal", entityId: proposal.id, meta: tenant.name } })
       .catch(() => {});
     await notifyOperators("PROPOSAL_ACCEPTED", `${tenant.name} accepted their proposal — engagement activated, contract drafting.`).catch(() => {});
+    kickAgentTick(); // drain the contract job now
   }
 
   return NextResponse.json({ ok: true, email: createdLogin?.email ?? email ?? null });

@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 import { proposalFromTranscript } from "@/lib/brain";
 import { getEngagementMaterials } from "@/server/rag/engagement-context";
+import { notifyOperators } from "@/server/notifications/fanout";
 
 /**
  * Generate (or re-generate) the proposal body for an engagement, grounded on the
@@ -31,5 +32,7 @@ export async function generateProposalForEngagement(
   await prisma.auditLog
     .create({ data: { action: "PROPOSAL_DRAFTED", entity: "Engagement", entityId: engagementId, meta: `${bodyMd.length} chars` } })
     .catch(() => {});
+  const tenantName = await prisma.tenant.findUnique({ where: { id: eng.tenant.id }, select: { name: true } });
+  await notifyOperators("PROPOSAL_READY", `bRRAIn drafted a proposal for ${tenantName?.name ?? eng.name} — review and send.`).catch(() => {});
   return { chars: bodyMd.length, budgetMinor: suggestedBudgetMinor };
 }
