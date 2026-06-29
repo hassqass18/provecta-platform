@@ -21,6 +21,8 @@ const EVENT_ACTION_MAP: Record<string, ActionResolution> = {
   DOCUMENT_INGESTED: { actionCategory: "document-filing", riskClass: "REVERSIBLE" },
   INBOUND_TICKET: { actionCategory: "ticket-reply", riskClass: "REVERSIBLE" },
   INVOICE_OVERDUE: { actionCategory: "invoice-reminder", riskClass: "REVERSIBLE" },
+  PROPOSAL_ACCEPTED: { actionCategory: "engagement-planning", riskClass: "REVERSIBLE" },
+  PHASE_READY: { actionCategory: "deliverable-drafting", riskClass: "REVERSIBLE" },
 };
 
 const DEFAULT_ACTION: ActionResolution = {

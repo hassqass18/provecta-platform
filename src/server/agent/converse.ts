@@ -3,6 +3,7 @@ import { chat, extractText, extractToolUses, llmConfigured, type ChatMessage, ty
 import { ensureAutonomyPolicy, canAutoExecute } from "@/lib/autonomy";
 import { guardClientReply } from "@/lib/agent/guardrails";
 import { getClientContext, renderClientContext } from "./context";
+import { getEngagementMaterials } from "@/server/rag/engagement-context";
 import { buildClientAgentPrompt } from "./client-prompt";
 import { CLIENT_TOOLS, dispatchClientTool, type ConvoCtx } from "./client-tools";
 import { sendOnChannel } from "@/server/comms/transport";
@@ -48,7 +49,15 @@ export async function converseFromTicket(ticketId: string): Promise<{ status: st
     draft = "Thanks for your message — the Provecta team has it and will follow up shortly.";
   } else {
     const facts = renderClientContext(await getClientContext(tenant.id));
-    const system = buildClientAgentPrompt(facts);
+    // P5: ground on the client's shareable document CONTENT (final + client-visible
+    // only — clientSafe mode excludes transcripts and unpublished docs), so the
+    // agent can answer substantively about their own deliverables.
+    const materials = await getEngagementMaterials(eng?.id ?? null, tenant.id, { clientSafe: true, maxChars: 6000 });
+    const system =
+      buildClientAgentPrompt(facts) +
+      (materials
+        ? `\n\nSHAREABLE DOCUMENT CONTENT (final, client-visible — you may reference and quote this to the client):\n${materials}`
+        : "");
     const messages: ChatMessage[] = history.map((h) => ({ role: h.role, content: h.content }));
     try {
       for (let i = 0; i < MAX_TOOL_ITERS; i++) {

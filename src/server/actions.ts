@@ -3,9 +3,10 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
 import { requireAdmin, requireUser } from "@/lib/session";
-import { recordApproval } from "@/lib/autonomy";
+import { recordApproval, ensureAutonomyPolicy, canAutoExecute } from "@/lib/autonomy";
 import { draftReply, generateEngagementPlan, draftDeliverable, type DeliverableKind } from "@/lib/brain";
 import { stageEngagementPlan } from "@/server/staging";
+import { getEngagementMaterials } from "@/server/rag/engagement-context";
 import { emitEvent } from "@/lib/events/emit";
 import { emitClientUpdate } from "@/server/notifications/fanout";
 import { recomputeSnapshot } from "@/server/dashboards/metrics";
@@ -56,6 +57,14 @@ export async function advanceMilestone(formData: FormData) {
       await audit(admin.id, "CLIENT_NOTIFY", "Engagement", current.engagementId, "milestone complete → client update logged");
     }
   }
+
+  // Phase started → emit PHASE_READY (queues a drafting suggestion in the agent
+  // loop) and, when the deliverable-drafting ramp has graduated to AUTONOMOUS,
+  // have bRRAIn draft this phase's not-yet-drafted deliverables automatically.
+  if (next === "IN_PROGRESS" && current.status !== "IN_PROGRESS") {
+    await emitEvent("PHASE_READY", "Milestone", id, { engagementId: current.engagementId, title: current.title }).catch(() => {});
+    await autoDraftPhaseDeliverables(id, current.engagementId, admin.id).catch(() => {});
+  }
   revalidatePath(`/admin/engagements/${current.engagementId}`);
 }
 
@@ -71,6 +80,7 @@ export async function setEngagementStatus(formData: FormData) {
   // plan if one hasn't been generated yet. Best-effort: never block the status
   // change on it.
   if (status === "ACTIVE" && before?.status !== "ACTIVE") {
+    await emitEvent("PROPOSAL_ACCEPTED", "Engagement", id, { status }).catch(() => {});
     const planned = await prisma.milestone.count({ where: { engagementId: id, source: "BRAIN" } });
     if (planned === 0) {
       await generateAndStagePlan(id, admin.id).catch(() => {});
@@ -90,12 +100,8 @@ async function generateAndStagePlan(engagementId: string, actorId: string | null
   });
   if (!eng) return null;
 
-  const transcripts = await prisma.transcript.findMany({
-    where: { OR: [{ engagementId }, { tenantId: eng.tenantId }] },
-    orderBy: { createdAt: "desc" },
-    take: 3,
-  });
-  const transcript = transcripts.map((t) => `# ${t.title}\n${t.body}`).join("\n\n").slice(0, 16000);
+  // P5: per-engagement grounding (transcripts + uploaded-document text).
+  const materials = await getEngagementMaterials(engagementId, eng.tenantId, { maxChars: 16000 });
 
   const { plan, provider } = await generateEngagementPlan(
     {
@@ -105,7 +111,7 @@ async function generateAndStagePlan(engagementId: string, actorId: string | null
       currency: eng.currency,
       charter: eng.charter,
       proposalMd: eng.proposal?.bodyMd ?? null,
-      transcript: transcript || null,
+      transcript: materials || null,
     },
     { engagementId },
   );
@@ -130,18 +136,6 @@ export async function generateEngagementPlanAction(formData: FormData) {
   revalidatePath(`/admin/engagements/${id}`);
 }
 
-// Concatenate an engagement's grounding materials (recent transcripts + the text
-// of uploaded documents) for use as deliverable-drafting context.
-async function engagementMaterials(engagementId: string, tenantId: string): Promise<string> {
-  const transcripts = await prisma.transcript.findMany({
-    where: { OR: [{ engagementId }, { tenantId }] },
-    orderBy: { createdAt: "desc" },
-    take: 4,
-  });
-  const parts = transcripts.map((t) => `# ${t.title}\n${t.body}`);
-  return parts.join("\n\n").slice(0, 16000);
-}
-
 // "Draft with bRRAIn" on a deliverable: generate real content into Deliverable.detail
 // for operator review. Drafting keeps the deliverable internal (clientVisible stays
 // as-is) until an operator publishes it.
@@ -161,7 +155,7 @@ export async function draftDeliverableAction(formData: FormData) {
   const phase = d.milestoneId
     ? await prisma.milestone.findUnique({ where: { id: d.milestoneId }, select: { title: true } })
     : null;
-  const materials = await engagementMaterials(d.engagementId, d.engagement.tenant.id);
+  const materials = await getEngagementMaterials(d.engagementId, d.engagement.tenant.id, { maxChars: 14000 });
   const { detail, provider } = await draftDeliverable(
     {
       title: d.title,
@@ -177,6 +171,48 @@ export async function draftDeliverableAction(formData: FormData) {
   await prisma.deliverable.update({ where: { id }, data: { detail } });
   await audit(admin.id, "DELIVERABLE_DRAFTED", "Deliverable", id, `${provider} · ${detail.length} chars`);
   revalidatePath(`/admin/engagements/${d.engagementId}`);
+}
+
+// P6: when a phase starts and the deliverable-drafting ramp has graduated to
+// AUTONOMOUS, bRRAIn drafts that phase's not-yet-drafted deliverables. Until the
+// ramp graduates (default SUGGEST), this is a no-op — the PHASE_READY event has
+// already queued the suggestion and the operator drafts via the button.
+// Best-effort and bounded (≤3 per phase) so the triggering action stays snappy.
+async function autoDraftPhaseDeliverables(milestoneId: string, engagementId: string, actorId: string | null) {
+  const policy = await ensureAutonomyPolicy("deliverable-drafting", "REVERSIBLE");
+  if (!canAutoExecute(policy.state, "REVERSIBLE")) return;
+
+  const pending = await prisma.deliverable.findMany({
+    where: { milestoneId, OR: [{ detail: null }, { detail: "" }] },
+    orderBy: { orderIndex: "asc" },
+    take: 3,
+  });
+  if (pending.length === 0) return;
+
+  const eng = await prisma.engagement.findUnique({
+    where: { id: engagementId },
+    include: { charter: true, tenant: { select: { id: true } } },
+  });
+  if (!eng) return;
+
+  const phase = await prisma.milestone.findUnique({ where: { id: milestoneId }, select: { title: true } });
+  const materials = await getEngagementMaterials(engagementId, eng.tenant.id, { maxChars: 14000 });
+
+  for (const d of pending) {
+    const { detail, provider } = await draftDeliverable(
+      {
+        title: d.title,
+        kind: d.kind as DeliverableKind,
+        phaseTitle: phase?.title ?? null,
+        engagementName: eng.name,
+        charter: eng.charter,
+        materials: materials || null,
+      },
+      { engagementId },
+    );
+    await prisma.deliverable.update({ where: { id: d.id }, data: { detail } });
+    await audit(actorId, "DELIVERABLE_AUTODRAFTED", "Deliverable", d.id, `${provider} · ${detail.length} chars`);
+  }
 }
 
 export async function approveTicketAction(formData: FormData) {
