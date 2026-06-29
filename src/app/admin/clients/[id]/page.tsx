@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { currentUser } from "@/lib/session";
 import { getClientOverview } from "@/server/client-data";
+import DangerZone from "./danger-zone";
 import { Badge, Card, CardHeader, Stat, EmptyRow } from "@/components/ui";
 import { uploadClientDocument } from "@/server/crud";
 import { signDocPath } from "@/lib/doc-link";
@@ -26,6 +28,7 @@ export default async function ClientOverviewPage({
   if (!data) notFound();
 
   const { tenant, engagements, documents, tickets, aggregates } = data;
+  const me = await currentUser();
   const hasBytes = (u: string | null | undefined) => !!u && (u.startsWith("db:") || u.startsWith("blob:"));
 
   // All milestones across engagements, tagged with their engagement name and
@@ -247,6 +250,8 @@ export default async function ClientOverviewPage({
           </tbody>
         </table>
       </Card>
+
+      {me?.role === "SUPER_ADMIN" ? <DangerZone tenantId={tenant.id} name={tenant.name} /> : null}
     </div>
   );
 }

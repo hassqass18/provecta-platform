@@ -6,6 +6,7 @@ import { hash } from "@node-rs/argon2";
 import { prisma } from "@/lib/db";
 import { requireAdmin } from "@/lib/session";
 import { storeFile } from "@/server/storage";
+import { deleteTenant } from "@/server/tenant/delete";
 
 async function audit(actorId: string, action: string, entity: string, entityId?: string, meta?: string) {
   await prisma.auditLog.create({ data: { actorId, action, entity, entityId, meta } });
@@ -101,6 +102,19 @@ export async function createClient(formData: FormData) {
   await audit(admin.id, "CLIENT_CREATE", "Tenant", t.id, preferredChannel ? `${name} · ${preferredChannel}` : name);
   revalidatePath("/admin/clients");
   redirect(`/admin/clients/${t.id}${pwParam}`);
+}
+
+// Hard-delete a client/prospect and its entire object graph (SUPER_ADMIN only).
+// Irreversible — the confirm lives in the UI.
+export async function deleteClient(formData: FormData) {
+  const admin = await requireAdmin();
+  if (admin.role !== "SUPER_ADMIN") return;
+  const tenantId = str(formData, "tenantId");
+  if (!tenantId) return;
+  const r = await deleteTenant(tenantId);
+  if (r.ok) await audit(admin.id, "CLIENT_DELETE", "Tenant", tenantId, r.name);
+  revalidatePath("/admin/clients");
+  redirect("/admin/clients");
 }
 
 // ── Document upload (web back office) ──────────────────────────────────

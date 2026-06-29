@@ -202,3 +202,14 @@ a { color: inherit; text-decoration: none; }
     linear-gradient(90deg, rgba(0, 113, 227, 0.07) 1px, transparent 1px);
   background-size: 48px 48px;
 }
+
+/* ── Dropdowns legible in BOTH themes ──────────────────────────────────
+   Inline <select>s that don't set their own bg/text would inherit the scope's
+   text colour over the browser-default white control — white-on-white in the
+   dark back office (only readable on hover). Pin an explicit background + text
+   colour for the control AND its native option list, and set color-scheme so
+   the popup matches the theme. */
+.appdark select { background-color: var(--dark-surface); color: #fff; color-scheme: dark; }
+.appdark select option { background-color: var(--dark-surface); color: #fff; }
+.applight select { background-color: #fff; color: var(--text-dark); color-scheme: light; }
+.applight select option { background-color: #fff; color: var(--text-dark); }
