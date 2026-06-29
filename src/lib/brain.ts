@@ -544,7 +544,7 @@ export async function draftDeliverable(
         messages: [
           { role: "user", content: `Draft the deliverable content.\n\n${context}` },
         ],
-        maxTokens: 3000,
+        maxTokens: 2200,
         temperature: 0.45,
       });
       const detail = extractText(res.content);

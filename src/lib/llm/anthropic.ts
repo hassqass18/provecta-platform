@@ -57,24 +57,39 @@ interface ApiResult {
   data: unknown;
 }
 
-async function callApi(body: Record<string, unknown>, apiKey: string): Promise<ApiResult> {
-  const res = await fetch(API_URL, {
-    method: "POST",
-    headers: {
-      "x-api-key": apiKey,
-      "anthropic-version": ANTHROPIC_VERSION,
-      "content-type": "application/json",
-    },
-    body: JSON.stringify(body),
-  });
-  const txt = await res.text();
-  let data: unknown = null;
+// Per-request ceiling so a single slow/hung call aborts instead of holding the
+// serverless function open until the platform 504s. On abort we surface a
+// synthetic 408 so the caller treats it as a retryable timeout.
+const PER_REQUEST_TIMEOUT_MS = 22_000;
+
+async function callApi(body: Record<string, unknown>, apiKey: string, timeoutMs = PER_REQUEST_TIMEOUT_MS): Promise<ApiResult> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    data = JSON.parse(txt);
-  } catch {
-    data = { raw: txt };
+    const res = await fetch(API_URL, {
+      method: "POST",
+      headers: {
+        "x-api-key": apiKey,
+        "anthropic-version": ANTHROPIC_VERSION,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    });
+    const txt = await res.text();
+    let data: unknown = null;
+    try {
+      data = JSON.parse(txt);
+    } catch {
+      data = { raw: txt };
+    }
+    return { status: res.status, data };
+  } catch (err) {
+    // Abort (timeout) or network error → synthetic 408 so the retry/fallback path runs.
+    return { status: 408, data: { error: { message: String(err).slice(0, 200) } } };
+  } finally {
+    clearTimeout(timer);
   }
-  return { status: res.status, data };
 }
 
 /** Best-effort extraction of a numeric retry_after from an error body. */
@@ -101,6 +116,7 @@ export async function chat(input: {
   toolChoice?: ToolChoice;
   maxTokens?: number;
   temperature?: number;
+  budgetMs?: number; // overall wall-clock ceiling for the whole call incl. retries
 }): Promise<ChatResponse> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) throw new Error("ANTHROPIC_API_KEY not configured");
@@ -124,10 +140,22 @@ export async function chat(input: {
   if (input.tools && input.tools.length) baseBody.tools = input.tools;
   if (input.toolChoice) baseBody.tool_choice = input.toolChoice;
 
+  // Overall wall-clock budget so the retry/backoff loop can never hold a
+  // serverless function open until the platform 504s. When the budget is spent
+  // we throw and the caller degrades to its keyless fallback.
+  const deadline = Date.now() + (input.budgetMs ?? 45_000);
+  const remaining = () => deadline - Date.now();
+  // Bounded sleep that never runs past the deadline.
+  const budgetedSleep = async (ms: number) => {
+    const wait = Math.min(ms, remaining() - 1_000);
+    if (wait > 0) await sleep(wait);
+  };
+
   // Try primary model with retries.
   let lastErr: string | null = null;
   for (let attempt = 0; attempt < 3; attempt++) {
-    const r = await callApi({ ...baseBody, model: primaryModel }, apiKey);
+    if (remaining() < 2_000) break; // not enough budget for another attempt → fall back
+    const r = await callApi({ ...baseBody, model: primaryModel }, apiKey, Math.min(remaining(), PER_REQUEST_TIMEOUT_MS));
     if (r.status >= 200 && r.status < 300) {
       if (attempt > 0) console.info("anthropic.recovered", { attempt, model: primaryModel });
       return r.data as ChatResponse;
@@ -135,14 +163,15 @@ export async function chat(input: {
     lastErr = JSON.stringify(r.data).slice(0, 400);
     console.warn("anthropic.error", { status: r.status, attempt, model: primaryModel, err: lastErr });
     if (r.status === 429) {
-      // Honour retry-after if Anthropic returned one in the body.
+      // Honour retry-after if Anthropic returned one, but cap so a long
+      // server-suggested wait can't blow the budget (we'd rather fall back).
       const ra = retryAfterSeconds(r.data);
-      const wait = ra ? ra * 1000 : 8_000 * (attempt + 1);
-      await sleep(wait);
+      await budgetedSleep(Math.min(ra ? ra * 1000 : 3_000 * (attempt + 1), 5_000));
       continue;
     }
-    if (r.status >= 500 && r.status < 600) {
-      await sleep(2_000 * (attempt + 1));
+    // 408 (our synthetic timeout/abort) or 5xx → transient, retry briefly.
+    if (r.status === 408 || (r.status >= 500 && r.status < 600)) {
+      await budgetedSleep(1_500 * (attempt + 1));
       continue;
     }
     // 4xx other than 429 — fatal.
@@ -150,17 +179,18 @@ export async function chat(input: {
   }
 
   // Primary exhausted — fall back to Haiku (higher per-minute limits).
-  if (primaryModel !== FALLBACK_MODEL) {
+  if (primaryModel !== FALLBACK_MODEL && remaining() > 2_000) {
     console.warn("anthropic.fallback_to_haiku", { reason: "primary exhausted", primary: primaryModel });
     for (let attempt = 0; attempt < 2; attempt++) {
-      const r = await callApi({ ...baseBody, model: FALLBACK_MODEL }, apiKey);
+      if (remaining() < 2_000) break;
+      const r = await callApi({ ...baseBody, model: FALLBACK_MODEL }, apiKey, Math.min(remaining(), PER_REQUEST_TIMEOUT_MS));
       if (r.status >= 200 && r.status < 300) {
         return r.data as ChatResponse;
       }
       lastErr = JSON.stringify(r.data).slice(0, 400);
       console.warn("anthropic.fallback_error", { status: r.status, attempt, err: lastErr });
-      if (r.status === 429 || (r.status >= 500 && r.status < 600)) {
-        await sleep(4_000 * (attempt + 1));
+      if (r.status === 408 || r.status === 429 || (r.status >= 500 && r.status < 600)) {
+        await budgetedSleep(2_000 * (attempt + 1));
         continue;
       }
       break;
