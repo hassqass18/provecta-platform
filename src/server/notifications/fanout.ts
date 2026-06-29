@@ -35,6 +35,21 @@ export async function notifyTenantClients(
 }
 
 /**
+ * Notify the operators (SUPER_ADMIN / ADMIN) in-app + via push. Used when the
+ * autonomous funnel needs a human (a prospect accepted, a contract is ready to
+ * review, a deliverable is awaiting approval).
+ */
+export async function notifyOperators(type: string, body: string): Promise<void> {
+  const admins = await prisma.user.findMany({
+    where: { role: { in: ["SUPER_ADMIN", "ADMIN"] } },
+    select: { id: true },
+  });
+  if (admins.length === 0) return;
+  await prisma.notification.createMany({ data: admins.map((u) => ({ userId: u.id, type, body })) });
+  await sendPushToUsers(admins.map((u) => u.id), { title: "Provecta — operator", body, data: { screen: "admin" } });
+}
+
+/**
  * Emit a client-facing update: log the outbound Communication and fan out an
  * in-app Notification to the tenant's CLIENT users.
  *

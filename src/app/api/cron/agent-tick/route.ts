@@ -5,8 +5,10 @@ import { ingestTenantFinals } from "@/server/brain/ingest";
 import { stageProjectFromTemplate } from "@/server/staging";
 import { processEvent } from "@/server/agent/runner";
 import { runProspectResearch } from "@/server/research/run";
+import { generateProposalForEngagement } from "@/server/proposal/generate";
+import { runContractIssue } from "@/server/contract/issue";
 
-// Research jobs run the LLM (web_search, ~50s) — allow the full window.
+// Research / proposal jobs run the LLM (~50s) — allow the full window.
 export const maxDuration = 60;
 
 // P1C outbox worker: drains PENDING IngestJobs (brain pulls + project staging +
@@ -46,6 +48,19 @@ export async function GET(req: Request) {
           engagementId: p.engagementId ?? null,
           input: { company: p.company ?? "Prospect", contact: p.contact ?? null, domain: p.domain ?? null },
         });
+        // Chain proposal generation (separate invocation — two LLM calls won't
+        // fit one 60s function) so the research brief grounds the proposal.
+        if (p.engagementId) {
+          await prisma.ingestJob.create({
+            data: { tenantId: job.tenantId, kind: "PROPOSAL", status: "PENDING", payload: { engagementId: p.engagementId } },
+          });
+        }
+      } else if (job.kind === "PROPOSAL") {
+        const engagementId = (job.payload as { engagementId?: string } | null)?.engagementId;
+        if (engagementId) await generateProposalForEngagement(engagementId);
+      } else if (job.kind === "CONTRACT") {
+        const engagementId = (job.payload as { engagementId?: string } | null)?.engagementId;
+        if (engagementId) await runContractIssue(engagementId);
       }
       await prisma.ingestJob.update({ where: { id: job.id }, data: { status: "DONE" } });
       results.push({ id: job.id, kind: job.kind, status: "DONE" });

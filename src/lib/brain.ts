@@ -593,3 +593,89 @@ function skeletonDeliverable(ctx: DeliverableContext): string {
     : "bRRAIn engine not keyed";
   return `# ${ctx.title}\n_${ctx.kind} · ${ctx.engagementName}${ctx.phaseTitle ? ` · ${ctx.phaseTitle}` : ""}_\n\n${body}\n\n_Draft skeleton — ${reason}; fill in with engagement materials._`;
 }
+
+// ── Contract generation (Phase C) ─────────────────────────────────────────
+// bRRAIn drafts the engagement agreement (services/deliverables/timeline/budget/
+// terms) as Markdown for operator review and in-app signature. Keyless → a
+// structured skeleton. NOT legal advice — the operator reviews before issue.
+export interface ContractScope {
+  clientName: string;
+  engagementName: string;
+  budgetMinor: number;
+  currency: string;
+  charter?: { objectives?: string | null; scope?: string | null; outOfScope?: string | null; successCriteria?: string | null } | null;
+  deliverables: { title: string; kind: string }[];
+  milestones: { title: string; dueDate?: Date | null }[];
+}
+
+export async function draftContract(
+  scope: ContractScope,
+  opts?: { budgetMs?: number; perRequestTimeoutMs?: number },
+): Promise<{ bodyMd: string; provider: BrainProvider }> {
+  const provider = brainProvider();
+  const amount = (scope.budgetMinor / 100).toLocaleString("en-US", { style: "currency", currency: scope.currency || "USD" });
+  const context = [
+    `Client: ${scope.clientName}`,
+    `Engagement: ${scope.engagementName}`,
+    `Total investment: ${amount}`,
+    scope.charter?.objectives ? `Objectives: ${scope.charter.objectives}` : "",
+    scope.charter?.scope ? `Scope: ${scope.charter.scope}` : "",
+    scope.charter?.outOfScope ? `Out of scope: ${scope.charter.outOfScope}` : "",
+    scope.charter?.successCriteria ? `Success criteria: ${scope.charter.successCriteria}` : "",
+    scope.deliverables.length ? `Deliverables:\n${scope.deliverables.map((d) => `- ${d.title} (${d.kind})`).join("\n")}` : "",
+    scope.milestones.length ? `Timeline (phases):\n${scope.milestones.map((m) => `- ${m.title}${m.dueDate ? ` — due ${new Date(m.dueDate).toISOString().slice(0, 10)}` : ""}`).join("\n")}` : "",
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  if (llmConfigured()) {
+    try {
+      const res = await chat({
+        system:
+          PROVECTA_VOICE +
+          " You are drafting a professional engagement agreement (services contract) between Provecta Group and the client. " +
+          "Output clean Markdown with these sections: Parties, Engagement summary, Scope of services, Deliverables, Timeline & milestones, " +
+          "Fees & payment terms (use the stated total; propose a sensible milestone-based schedule), Client responsibilities, " +
+          "Confidentiality, Intellectual property, Term & termination, Limitation of liability, and Signatures (a typed-signature block for each party). " +
+          "Be concrete to THIS engagement using the details provided; do not invent figures beyond the stated total. " +
+          "This is a working draft for operator review — note it is not a substitute for legal counsel where required.",
+        messages: [{ role: "user", content: `Draft the engagement agreement.\n\n${context}` }],
+        maxTokens: 2000,
+        temperature: 0.3,
+        budgetMs: opts?.budgetMs ?? 55_000,
+        perRequestTimeoutMs: opts?.perRequestTimeoutMs ?? 52_000,
+      });
+      const bodyMd = extractText(res.content);
+      if (bodyMd) return { bodyMd, provider };
+    } catch {
+      // fall through to skeleton
+    }
+  }
+  return { bodyMd: skeletonContract(scope, amount), provider: "STUB" };
+}
+
+function skeletonContract(scope: ContractScope, amount: string): string {
+  return `# Engagement Agreement — ${scope.clientName}
+
+**Parties:** Provecta Group ("Provider") and ${scope.clientName} ("Client").
+**Engagement:** ${scope.engagementName}
+**Total investment:** ${amount}
+
+## Scope of services
+${scope.charter?.scope ?? "_(to be drafted)_"}
+
+## Deliverables
+${scope.deliverables.map((d) => `- ${d.title} (${d.kind})`).join("\n") || "_(to be drafted)_"}
+
+## Timeline & milestones
+${scope.milestones.map((m) => `- ${m.title}${m.dueDate ? ` — due ${new Date(m.dueDate).toISOString().slice(0, 10)}` : ""}`).join("\n") || "_(to be drafted)_"}
+
+## Fees & payment terms
+Total ${amount}, invoiced against milestone completion.
+
+## Signatures
+Provider: Provecta Group — ____________________  Date: __________
+Client: ${scope.clientName} — ____________________  Date: __________
+
+_Draft skeleton — bRRAIn engine not keyed; complete before issuing._`;
+}

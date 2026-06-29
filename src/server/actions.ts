@@ -4,8 +4,8 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
 import { requireAdmin, requireUser } from "@/lib/session";
 import { recordApproval, ensureAutonomyPolicy, canAutoExecute } from "@/lib/autonomy";
-import { draftReply, generateEngagementPlan, draftDeliverable, type DeliverableKind } from "@/lib/brain";
-import { stageEngagementPlan } from "@/server/staging";
+import { draftReply, draftDeliverable, type DeliverableKind } from "@/lib/brain";
+import { generateAndStagePlan } from "@/server/engagement/plan";
 import { getEngagementMaterials } from "@/server/rag/engagement-context";
 import { emitEvent } from "@/lib/events/emit";
 import { emitClientUpdate } from "@/server/notifications/fanout";
@@ -89,42 +89,6 @@ export async function setEngagementStatus(formData: FormData) {
 
   revalidatePath(`/admin/engagements/${id}`);
   revalidatePath("/admin/engagements");
-}
-
-// Assemble an engagement's scope, ask bRRAIn for the tailored plan, and stage it.
-// Shared by the explicit "Generate plan" action and the auto-trigger on accept.
-async function generateAndStagePlan(engagementId: string, actorId: string | null) {
-  const eng = await prisma.engagement.findUnique({
-    where: { id: engagementId },
-    include: { charter: true, proposal: true, tenant: { select: { id: true, name: true } } },
-  });
-  if (!eng) return null;
-
-  // P5: per-engagement grounding (transcripts + uploaded-document text).
-  const materials = await getEngagementMaterials(engagementId, eng.tenantId, { maxChars: 16000 });
-
-  const { plan, provider } = await generateEngagementPlan(
-    {
-      name: eng.name,
-      summary: eng.summary,
-      budgetMinor: eng.budgetMinor,
-      currency: eng.currency,
-      charter: eng.charter,
-      proposalMd: eng.proposal?.bodyMd ?? null,
-      transcript: materials || null,
-    },
-    { engagementId },
-  );
-
-  const result = await stageEngagementPlan(engagementId, plan);
-  await audit(
-    actorId,
-    "ENGAGEMENT_PLAN_STAGED",
-    "Engagement",
-    engagementId,
-    `${provider} · ${result.milestones} phases · created=${result.created}`,
-  );
-  return result;
 }
 
 // Explicit "Generate plan with bRRAIn" button on the engagement page.
