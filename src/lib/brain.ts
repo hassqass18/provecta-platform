@@ -477,3 +477,107 @@ function heuristicPlan(scope: EngagementScope): EngagementPlan {
     ],
   };
 }
+
+// ── Deliverable drafting (P4) ──────────────────────────────────────────────
+// bRRAIn drafts the actual CONTENT of a deliverable (audit findings, CRM/ops
+// architecture, build spec, report) as a markdown write-up grounded in the
+// engagement's materials + bRRAIn knowledge. Operator reviews before publishing.
+
+export interface DeliverableContext {
+  title: string;
+  kind: DeliverableKind;
+  phaseTitle?: string | null;
+  engagementName: string;
+  charter?: {
+    objectives?: string | null;
+    scope?: string | null;
+    outOfScope?: string | null;
+    successCriteria?: string | null;
+  } | null;
+  materials?: string | null; // transcripts + uploaded-doc text, concatenated
+}
+
+// Per-kind guidance for the structure bRRAIn should produce.
+const DELIVERABLE_SHAPE: Record<DeliverableKind, string> = {
+  AUDIT:
+    "A current-state audit. Sections: Executive summary, Current-state findings (specific, evidenced), Gaps & risks (prioritised), KPI baseline, Recommendations, Next steps.",
+  ARCHITECTURE:
+    "A systems/operating-model architecture. Sections: Overview & goals, Target operating model, Data model & key entities, Integrations & data flows, Roles & access, Rollout considerations.",
+  BUILD:
+    "A build specification / build report. Sections: Scope, What was/will be built (components & workflows), Integrations, Configuration decisions, Testing & acceptance, Open items.",
+  REPORT:
+    "A professional report. Sections: Summary, Context, Findings/Progress, Analysis, Recommendations, Next steps.",
+  DELIVERABLE:
+    "A clear, well-structured deliverable write-up with a short summary, the substantive content in logical sections, and explicit next steps.",
+};
+
+export async function draftDeliverable(
+  ctx: DeliverableContext,
+  opts?: { engagementId?: string },
+): Promise<{ detail: string; provider: BrainProvider }> {
+  const provider = brainProvider();
+  const c = ctx.charter;
+  const context = [
+    `Engagement: ${ctx.engagementName}`,
+    ctx.phaseTitle ? `Phase: ${ctx.phaseTitle}` : "",
+    `Deliverable: ${ctx.title} (${ctx.kind})`,
+    c?.objectives ? `Objectives: ${c.objectives}` : "",
+    c?.scope ? `Scope: ${c.scope}` : "",
+    c?.outOfScope ? `Out of scope: ${c.outOfScope}` : "",
+    c?.successCriteria ? `Success criteria: ${c.successCriteria}` : "",
+    ctx.materials ? `Engagement materials:\n${ctx.materials.slice(0, 14000)}` : "",
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  if (llmConfigured()) {
+    try {
+      const ground = await grounding(`${ctx.title} ${ctx.kind} ${c?.scope ?? ""}`);
+      const res = await chat({
+        system:
+          PROVECTA_VOICE +
+          ` You are drafting the actual content of a client deliverable. ${DELIVERABLE_SHAPE[ctx.kind]} ` +
+          "Write it in Markdown, ready for a senior operator to review and refine. Be concrete and specific to THIS engagement; " +
+          "ground every claim in the materials provided or bRRAIn knowledge. Where a fact is genuinely not available, state the assumption " +
+          "explicitly or note what input is required — never fabricate client data, numbers, or names." +
+          ground,
+        messages: [
+          { role: "user", content: `Draft the deliverable content.\n\n${context}` },
+        ],
+        maxTokens: 3000,
+        temperature: 0.45,
+      });
+      const detail = extractText(res.content);
+      if (detail) {
+        await prisma.brainQuery
+          .create({
+            data: {
+              prompt: `Draft deliverable: ${ctx.title}`,
+              response: detail.slice(0, 8000),
+              provider,
+              engagementId: opts?.engagementId,
+            },
+          })
+          .catch(() => {});
+        return { detail, provider };
+      }
+    } catch {
+      // fall through to skeleton
+    }
+  }
+  return { detail: skeletonDeliverable(ctx), provider: "STUB" };
+}
+
+function skeletonDeliverable(ctx: DeliverableContext): string {
+  const headings: Record<DeliverableKind, string[]> = {
+    AUDIT: ["Executive summary", "Current-state findings", "Gaps & risks", "KPI baseline", "Recommendations", "Next steps"],
+    ARCHITECTURE: ["Overview & goals", "Target operating model", "Data model", "Integrations & data flows", "Roles & access", "Rollout"],
+    BUILD: ["Scope", "What is built", "Integrations", "Configuration decisions", "Testing & acceptance", "Open items"],
+    REPORT: ["Summary", "Context", "Findings", "Analysis", "Recommendations", "Next steps"],
+    DELIVERABLE: ["Summary", "Details", "Next steps"],
+  };
+  const body = headings[ctx.kind]
+    .map((h) => `## ${h}\n_(to be drafted)_`)
+    .join("\n\n");
+  return `# ${ctx.title}\n_${ctx.kind} · ${ctx.engagementName}${ctx.phaseTitle ? ` · ${ctx.phaseTitle}` : ""}_\n\n${body}\n\n_Draft skeleton — bRRAIn engine not keyed; fill in with engagement materials._`;
+}

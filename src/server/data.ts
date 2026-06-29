@@ -74,6 +74,7 @@ export async function getEngagementDetail(id: string) {
       proposal: true,
       milestones: { orderBy: { orderIndex: "asc" }, include: { tasks: true } },
       tasks: { include: { assignee: true } },
+      deliverables: { orderBy: { orderIndex: "asc" } },
       kpis: true,
       slas: true,
       invoices: { include: { payments: true } },

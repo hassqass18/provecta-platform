@@ -222,6 +222,54 @@ export async function addSla(formData: FormData) {
   revalidatePath(`/admin/engagements/${engagementId}`);
 }
 
+// ── Deliverables (P4) ─────────────────────────────────────────────────
+const DELIVERABLE_KINDS = ["DELIVERABLE", "AUDIT", "ARCHITECTURE", "BUILD", "REPORT"];
+
+export async function addDeliverable(formData: FormData) {
+  const admin = await requireAdmin();
+  const engagementId = str(formData, "engagementId");
+  const title = str(formData, "title");
+  if (!engagementId || !title) return;
+  const kind = str(formData, "kind");
+  const count = await prisma.deliverable.count({ where: { engagementId } });
+  const d = await prisma.deliverable.create({
+    data: {
+      engagementId,
+      milestoneId: str(formData, "milestoneId") || null,
+      title,
+      kind: DELIVERABLE_KINDS.includes(kind) ? kind : "DELIVERABLE",
+      orderIndex: count + 1,
+      clientVisible: false, // starts internal until reviewed & published
+    },
+  });
+  await audit(admin.id, "DELIVERABLE_CREATE", "Deliverable", d.id, title);
+  revalidatePath(`/admin/engagements/${engagementId}`);
+}
+
+// Operator review → publish: mark DELIVERED and make it client-visible.
+export async function publishDeliverable(formData: FormData) {
+  const admin = await requireAdmin();
+  const id = str(formData, "id");
+  const engagementId = str(formData, "engagementId");
+  if (!id) return;
+  await prisma.deliverable.update({
+    where: { id },
+    data: { status: "DELIVERED", clientVisible: true },
+  });
+  await audit(admin.id, "DELIVERABLE_PUBLISH", "Deliverable", id);
+  if (engagementId) revalidatePath(`/admin/engagements/${engagementId}`);
+}
+
+export async function deleteDeliverable(formData: FormData) {
+  const admin = await requireAdmin();
+  const id = str(formData, "id");
+  const engagementId = str(formData, "engagementId");
+  if (!id) return;
+  await prisma.deliverable.delete({ where: { id } });
+  await audit(admin.id, "DELIVERABLE_DELETE", "Deliverable", id);
+  if (engagementId) revalidatePath(`/admin/engagements/${engagementId}`);
+}
+
 // ── Invoices ──────────────────────────────────────────────────────────
 export async function createInvoice(formData: FormData) {
   const admin = await requireAdmin();

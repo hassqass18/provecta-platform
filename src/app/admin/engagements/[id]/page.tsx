@@ -1,7 +1,21 @@
 import { notFound } from "next/navigation";
 import { getEngagementDetail } from "@/server/data";
-import { advanceMilestone, setEngagementStatus, generateEngagementPlanAction } from "@/server/actions";
-import { addMilestone, addTask, addKpi, addSla, createInvoice } from "@/server/crud";
+import {
+  advanceMilestone,
+  setEngagementStatus,
+  generateEngagementPlanAction,
+  draftDeliverableAction,
+} from "@/server/actions";
+import {
+  addMilestone,
+  addTask,
+  addKpi,
+  addSla,
+  createInvoice,
+  addDeliverable,
+  publishDeliverable,
+  deleteDeliverable,
+} from "@/server/crud";
 import {
   editEngagementFull,
   upsertCharter,
@@ -32,6 +46,7 @@ const TASK_STATUSES = ["TODO", "IN_PROGRESS", "DONE"];
 const TASK_PRIORITIES = ["LOW", "MEDIUM", "HIGH"];
 const SLA_STATUSES = ["MEETING", "AT_RISK", "BREACHED"];
 const KPI_UNITS = ["%", "days", "count", "$", "hours", "score"];
+const DELIVERABLE_KINDS = ["DELIVERABLE", "AUDIT", "ARCHITECTURE", "BUILD", "REPORT"];
 const SLA_TARGETS = ["< 1h", "< 4h", "< 24h", "99.9%", "Same day", "Next business day"];
 
 // yyyy-MM-dd for <input type="date" defaultValue>
@@ -53,6 +68,7 @@ export default async function EngagementDetail({ params }: { params: Promise<{ i
   if (!e) notFound();
 
   const planExists = e.milestones.some((m) => m.source === "BRAIN");
+  const phaseTitle = new Map(e.milestones.map((m) => [m.id, m.title]));
 
   return (
     <div className="space-y-6">
@@ -324,6 +340,88 @@ export default async function EngagementDetail({ params }: { params: Promise<{ i
               ))}
             </select>
             <button className={ABTN}>Add task</button>
+          </form>
+        </NewForm>
+      </Card>
+
+      {/* ── Deliverables — draft content with bRRAIn, review, publish (P4) ── */}
+      <Card>
+        <CardHeader title="Deliverables — draft with bRRAIn" />
+        <ul className="divide-y divide-slate-100">
+          {e.deliverables.map((d) => (
+            <li key={d.id} className="px-5 py-3">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <div className="text-sm font-medium text-slate-800">{d.title}</div>
+                  <div className="text-xs text-slate-500">
+                    {d.kind}
+                    {d.milestoneId && phaseTitle.has(d.milestoneId) ? ` · ${phaseTitle.get(d.milestoneId)}` : ""} ·{" "}
+                    {d.detail ? `${d.detail.length} chars` : "no content yet"}
+                    {d.clientVisible ? "" : " · internal"}
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Badge tone={d.status === "DELIVERED" ? "success" : "neutral"}>{d.status}</Badge>
+                  <form action={draftDeliverableAction}>
+                    <input type="hidden" name="id" value={d.id} />
+                    <button className="rounded-lg border border-slate-200 px-3 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50">
+                      {d.detail ? "Re-draft" : "Draft with bRRAIn"}
+                    </button>
+                  </form>
+                  {d.status !== "DELIVERED" ? (
+                    <form action={publishDeliverable}>
+                      <input type="hidden" name="id" value={d.id} />
+                      <input type="hidden" name="engagementId" value={e.id} />
+                      <button className="rounded-lg bg-[var(--color-brand)] px-3 py-1 text-xs font-medium text-white hover:opacity-90">
+                        Publish →
+                      </button>
+                    </form>
+                  ) : null}
+                </div>
+              </div>
+              {d.detail ? (
+                <details className="mt-2">
+                  <summary className="cursor-pointer list-none text-xs font-medium text-[#5ab0ff]">
+                    Preview content
+                  </summary>
+                  <pre className="mt-2 max-h-72 overflow-auto whitespace-pre-wrap rounded-lg bg-slate-50 p-3 text-xs text-slate-700">
+                    {d.detail}
+                  </pre>
+                  <form action={deleteDeliverable} className="mt-2">
+                    <input type="hidden" name="id" value={d.id} />
+                    <input type="hidden" name="engagementId" value={e.id} />
+                    <button className={DEL_BTN}>Delete deliverable</button>
+                  </form>
+                </details>
+              ) : null}
+            </li>
+          ))}
+          {e.deliverables.length === 0 ? (
+            <li className="px-5 py-4 text-sm text-slate-400">
+              No deliverables yet — generate the plan above, or add one below.
+            </li>
+          ) : null}
+        </ul>
+        <NewForm label="Add deliverable">
+          <form action={addDeliverable} className="grid gap-3 sm:grid-cols-3">
+            <input type="hidden" name="engagementId" value={e.id} />
+            <input name="title" required placeholder="Deliverable title" className={`${AINPUT} sm:col-span-2`} />
+            <select name="kind" className={AINPUT} defaultValue="DELIVERABLE">
+              {DELIVERABLE_KINDS.map((k) => (
+                <option key={k} value={k}>
+                  {k}
+                </option>
+              ))}
+            </select>
+            <select name="milestoneId" className={`${AINPUT} sm:col-span-2`} defaultValue="">
+              <option value="">No phase</option>
+              {e.milestones.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.title}
+                </option>
+              ))}
+            </select>
+            <button className={ABTN}>Add deliverable</button>
           </form>
         </NewForm>
       </Card>

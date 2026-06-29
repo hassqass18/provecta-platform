@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
 import { requireAdmin, requireUser } from "@/lib/session";
 import { recordApproval } from "@/lib/autonomy";
-import { draftReply, generateEngagementPlan } from "@/lib/brain";
+import { draftReply, generateEngagementPlan, draftDeliverable, type DeliverableKind } from "@/lib/brain";
 import { stageEngagementPlan } from "@/server/staging";
 import { emitEvent } from "@/lib/events/emit";
 import { emitClientUpdate } from "@/server/notifications/fanout";
@@ -128,6 +128,55 @@ export async function generateEngagementPlanAction(formData: FormData) {
   if (!id) return;
   await generateAndStagePlan(id, admin.id);
   revalidatePath(`/admin/engagements/${id}`);
+}
+
+// Concatenate an engagement's grounding materials (recent transcripts + the text
+// of uploaded documents) for use as deliverable-drafting context.
+async function engagementMaterials(engagementId: string, tenantId: string): Promise<string> {
+  const transcripts = await prisma.transcript.findMany({
+    where: { OR: [{ engagementId }, { tenantId }] },
+    orderBy: { createdAt: "desc" },
+    take: 4,
+  });
+  const parts = transcripts.map((t) => `# ${t.title}\n${t.body}`);
+  return parts.join("\n\n").slice(0, 16000);
+}
+
+// "Draft with bRRAIn" on a deliverable: generate real content into Deliverable.detail
+// for operator review. Drafting keeps the deliverable internal (clientVisible stays
+// as-is) until an operator publishes it.
+export async function draftDeliverableAction(formData: FormData) {
+  const admin = await requireAdmin();
+  const id = String(formData.get("id"));
+  if (!id) return;
+
+  const d = await prisma.deliverable.findUnique({
+    where: { id },
+    include: {
+      engagement: { include: { charter: true, tenant: { select: { id: true } } } },
+    },
+  });
+  if (!d) return;
+
+  const phase = d.milestoneId
+    ? await prisma.milestone.findUnique({ where: { id: d.milestoneId }, select: { title: true } })
+    : null;
+  const materials = await engagementMaterials(d.engagementId, d.engagement.tenant.id);
+  const { detail, provider } = await draftDeliverable(
+    {
+      title: d.title,
+      kind: d.kind as DeliverableKind,
+      phaseTitle: phase?.title ?? null,
+      engagementName: d.engagement.name,
+      charter: d.engagement.charter,
+      materials: materials || null,
+    },
+    { engagementId: d.engagementId },
+  );
+
+  await prisma.deliverable.update({ where: { id }, data: { detail } });
+  await audit(admin.id, "DELIVERABLE_DRAFTED", "Deliverable", id, `${provider} · ${detail.length} chars`);
+  revalidatePath(`/admin/engagements/${d.engagementId}`);
 }
 
 export async function approveTicketAction(formData: FormData) {
