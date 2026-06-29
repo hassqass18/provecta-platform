@@ -23,6 +23,22 @@ const dateOrNull = (fd: FormData, k: string) => {
 };
 const dollarsToMinor = (fd: FormData, k: string) => Math.round((Number(fd.get(k)) || 0) * 100);
 
+// Decode an uploaded file to plain text when it's a text format we can read
+// directly (no binary parser). Returns null for pdf/docx/images/etc.
+function decodeTextFile(bytes: Buffer, mime: string, name: string): string | null {
+  const m = mime.toLowerCase();
+  const textual =
+    m.startsWith("text/") ||
+    /(json|xml|csv|yaml|markdown)/.test(m) ||
+    /\.(md|markdown|txt|text|csv|tsv|json|ya?ml|xml|html?|log|vtt|srt|rtf)$/i.test(name);
+  if (!textual) return null;
+  // Reject NUL-bearing buffers (mislabeled binary).
+  const n = Math.min(bytes.length, 1024);
+  for (let i = 0; i < n; i++) if (bytes[i] === 0) return null;
+  const text = bytes.toString("utf8").trim();
+  return text.length ? text.slice(0, 200000) : null;
+}
+
 // ── Clients ───────────────────────────────────────────────────────────
 export async function createClient(formData: FormData) {
   const admin = await requireAdmin();
@@ -58,6 +74,29 @@ export async function createClient(formData: FormData) {
   const notes = str(formData, "notes");
   if (notes) {
     await prisma.transcript.create({ data: { tenantId: t.id, title: `${name} — initial consultation`, body: notes, source: "DISCOVERY_CALL" } });
+  }
+  // Optional: upload discovery transcript file(s) to seed the engagement. Each
+  // file is stored as an internal Document; text-decodable ones (txt/md/vtt/srt/
+  // csv/json) also become a Transcript so they ground the bRRAIn plan/proposal
+  // generation. Binary files (pdf/docx) are attached but not text-extracted.
+  const files = formData.getAll("transcriptFiles").filter((f): f is File => f instanceof File && f.size > 0);
+  for (const file of files) {
+    const fname = file.name || "transcript";
+    const bytes = Buffer.from(await file.arrayBuffer());
+    const contentType = file.type || "application/octet-stream";
+    const stored = await storeFile(fname, bytes, contentType);
+    await prisma.document.create({
+      data: {
+        tenantId: t.id, name: fname, kind: "TRANSCRIPT", mimeType: contentType,
+        url: stored.ref, sizeBytes: stored.sizeBytes, source: "HUMAN", clientVisible: false,
+      },
+    });
+    const text = decodeTextFile(bytes, contentType, fname);
+    if (text) {
+      await prisma.transcript.create({
+        data: { tenantId: t.id, title: fname.replace(/\.[^.]+$/, ""), body: text, source: "UPLOAD" },
+      });
+    }
   }
   await audit(admin.id, "CLIENT_CREATE", "Tenant", t.id, preferredChannel ? `${name} · ${preferredChannel}` : name);
   revalidatePath("/admin/clients");

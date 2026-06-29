@@ -198,7 +198,17 @@ async function autoDraftPhaseDeliverables(milestoneId: string, engagementId: str
   const phase = await prisma.milestone.findUnique({ where: { id: milestoneId }, select: { title: true } });
   const materials = await getEngagementMaterials(engagementId, eng.tenant.id, { maxChars: 14000 });
 
+  // A full draft now takes ~35-50s, so only ~1 fits inside the 60s function
+  // window. Draft as many as the remaining wall-clock allows (each with a
+  // generous budget for full content) and leave the rest PENDING — the next
+  // PHASE event / agent tick / manual button picks them up. Never run past the
+  // window or the advancing action would time out.
+  const startedAt = Date.now();
+  const WINDOW_MS = 55_000; // headroom under maxDuration=60
+  const PER_DRAFT_MS = 55_000;
+  let drafted = 0;
   for (const d of pending) {
+    if (Date.now() - startedAt + PER_DRAFT_MS > WINDOW_MS) break; // not enough time for another full draft
     const { detail, provider } = await draftDeliverable(
       {
         title: d.title,
@@ -208,10 +218,14 @@ async function autoDraftPhaseDeliverables(milestoneId: string, engagementId: str
         charter: eng.charter,
         materials: materials || null,
       },
-      { engagementId },
+      { engagementId, budgetMs: PER_DRAFT_MS, perRequestTimeoutMs: PER_DRAFT_MS - 1_000 },
     );
     await prisma.deliverable.update({ where: { id: d.id }, data: { detail } });
     await audit(actorId, "DELIVERABLE_AUTODRAFTED", "Deliverable", d.id, `${provider} · ${detail.length} chars`);
+    drafted++;
+  }
+  if (drafted < pending.length) {
+    console.info("autoDraft.deferred", { milestoneId, drafted, deferred: pending.length - drafted });
   }
 }
 

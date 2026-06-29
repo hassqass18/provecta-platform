@@ -60,11 +60,22 @@ export default async function ClientsPage() {
             </select>
             <input name="channelAddress" placeholder="Channel address (phone / email / id)" className={`${AINPUT} max-w-xs`} />
             <textarea name="notes" placeholder="Consultation / discovery notes (optional) — captured as the first transcript" className={`${AINPUT} h-20 w-full`} />
+            <label className="flex w-full flex-col gap-1 px-1 text-xs text-slate-500">
+              Discovery transcripts (optional) — upload call transcripts / notes to seed the engagement
+              <input
+                name="transcriptFiles"
+                type="file"
+                multiple
+                accept=".txt,.md,.markdown,.vtt,.srt,.csv,.json,.log,.pdf,.docx,.doc,text/*"
+                className="block w-full max-w-md text-xs text-slate-600 file:mr-3 file:rounded-full file:border-0 file:bg-slate-100 file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-slate-700 hover:file:bg-slate-200"
+              />
+            </label>
             <button className={ABTN}>Start engagement</button>
           </form>
           <p className="mt-1.5 px-1 text-xs text-slate-500">
             Creates the workspace, stages the onboarding engagement, and (with a contact email) the client&apos;s login.
-            Add documents &amp; materials on the client page. The main channel is their single point of contact.
+            Uploaded transcripts seed the engagement — text files (.txt/.md/.vtt/.srt) are read in as transcripts that
+            ground bRRAIn&apos;s plan &amp; proposals; PDFs/Word are attached as documents. The main channel is their single point of contact.
           </p>
         </NewForm>
       </Card>

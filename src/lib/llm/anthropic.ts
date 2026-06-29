@@ -117,9 +117,15 @@ export async function chat(input: {
   maxTokens?: number;
   temperature?: number;
   budgetMs?: number; // overall wall-clock ceiling for the whole call incl. retries
+  perRequestTimeoutMs?: number; // per-attempt ceiling; raise for long generations
 }): Promise<ChatResponse> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) throw new Error("ANTHROPIC_API_KEY not configured");
+
+  // Per-attempt ceiling. The 22s default suits short calls; long free-form
+  // generations (a full deliverable draft is ~2k tokens, ~35-45s non-streamed)
+  // need a larger ceiling or they abort mid-flight and degrade to a stub.
+  const perReqCap = input.perRequestTimeoutMs ?? PER_REQUEST_TIMEOUT_MS;
 
   const primaryModel = process.env.ANTHROPIC_MODEL || DEFAULT_MODEL;
 
@@ -155,7 +161,7 @@ export async function chat(input: {
   let lastErr: string | null = null;
   for (let attempt = 0; attempt < 3; attempt++) {
     if (remaining() < 2_000) break; // not enough budget for another attempt → fall back
-    const r = await callApi({ ...baseBody, model: primaryModel }, apiKey, Math.min(remaining(), PER_REQUEST_TIMEOUT_MS));
+    const r = await callApi({ ...baseBody, model: primaryModel }, apiKey, Math.min(remaining(), perReqCap));
     if (r.status >= 200 && r.status < 300) {
       if (attempt > 0) console.info("anthropic.recovered", { attempt, model: primaryModel });
       return r.data as ChatResponse;
@@ -183,7 +189,7 @@ export async function chat(input: {
     console.warn("anthropic.fallback_to_haiku", { reason: "primary exhausted", primary: primaryModel });
     for (let attempt = 0; attempt < 2; attempt++) {
       if (remaining() < 2_000) break;
-      const r = await callApi({ ...baseBody, model: FALLBACK_MODEL }, apiKey, Math.min(remaining(), PER_REQUEST_TIMEOUT_MS));
+      const r = await callApi({ ...baseBody, model: FALLBACK_MODEL }, apiKey, Math.min(remaining(), perReqCap));
       if (r.status >= 200 && r.status < 300) {
         return r.data as ChatResponse;
       }

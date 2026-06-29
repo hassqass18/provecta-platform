@@ -513,7 +513,7 @@ const DELIVERABLE_SHAPE: Record<DeliverableKind, string> = {
 
 export async function draftDeliverable(
   ctx: DeliverableContext,
-  opts?: { engagementId?: string },
+  opts?: { engagementId?: string; budgetMs?: number; perRequestTimeoutMs?: number },
 ): Promise<{ detail: string; provider: BrainProvider }> {
   const provider = brainProvider();
   const c = ctx.charter;
@@ -525,7 +525,7 @@ export async function draftDeliverable(
     c?.scope ? `Scope: ${c.scope}` : "",
     c?.outOfScope ? `Out of scope: ${c.outOfScope}` : "",
     c?.successCriteria ? `Success criteria: ${c.successCriteria}` : "",
-    ctx.materials ? `Engagement materials:\n${ctx.materials.slice(0, 14000)}` : "",
+    ctx.materials ? `Engagement materials:\n${ctx.materials.slice(0, 9000)}` : "",
   ]
     .filter(Boolean)
     .join("\n");
@@ -544,8 +544,15 @@ export async function draftDeliverable(
         messages: [
           { role: "user", content: `Draft the deliverable content.\n\n${context}` },
         ],
-        maxTokens: 2200,
+        // ~1500 tokens is a full multi-section draft (~6-7k chars) that an
+        // operator refines. We keep it under ~1500 deliberately: on the Hobby
+        // 60s function cap a 2200-token draft takes ~55-57s non-streamed and
+        // gets aborted into the skeleton. ~1500 finishes in ~38-42s, fitting
+        // comfortably under the budget below (which stays safely < 60s).
+        maxTokens: 1500,
         temperature: 0.45,
+        budgetMs: opts?.budgetMs ?? 55_000,
+        perRequestTimeoutMs: opts?.perRequestTimeoutMs ?? 52_000,
       });
       const detail = extractText(res.content);
       if (detail) {
@@ -579,5 +586,10 @@ function skeletonDeliverable(ctx: DeliverableContext): string {
   const body = headings[ctx.kind]
     .map((h) => `## ${h}\n_(to be drafted)_`)
     .join("\n\n");
-  return `# ${ctx.title}\n_${ctx.kind} · ${ctx.engagementName}${ctx.phaseTitle ? ` · ${ctx.phaseTitle}` : ""}_\n\n${body}\n\n_Draft skeleton — bRRAIn engine not keyed; fill in with engagement materials._`;
+  // Be truthful about WHY this is a skeleton: no key vs the call failed/timed
+  // out. The old "not keyed" text was misleading when a key was present.
+  const reason = llmConfigured()
+    ? "bRRAIn drafting was unavailable (timed out or rate-limited) — re-draft to try again"
+    : "bRRAIn engine not keyed";
+  return `# ${ctx.title}\n_${ctx.kind} · ${ctx.engagementName}${ctx.phaseTitle ? ` · ${ctx.phaseTitle}` : ""}_\n\n${body}\n\n_Draft skeleton — ${reason}; fill in with engagement materials._`;
 }
