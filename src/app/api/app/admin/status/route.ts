@@ -29,7 +29,16 @@ export async function POST(req: Request) {
       targetType, targetId, decision: "APPROVED",
       actorType: "STAFF", actorId: admin.id, actorName: admin.name ?? "Provecta",
     });
-    return NextResponse.json({ ok: true, approvalStatus: status });
+    // Approve = release: operator approval of a deliverable publishes it to the
+    // client (DELIVERED + visible) and notifies them — "once approved it is
+    // shown to the client". Collapses the separate manual Publish step.
+    if (targetType === "DELIVERABLE") {
+      const d = await prisma.deliverable.findUnique({ where: { id: targetId }, select: { title: true } });
+      await prisma.deliverable.update({ where: { id: targetId }, data: { status: "DELIVERED", clientVisible: true } });
+      await prisma.auditLog.create({ data: { actorId: admin.id, action: "DELIVERABLE_PUBLISH", entity: "Deliverable", entityId: targetId, meta: "auto-published on approval" } }).catch(() => {});
+      await notifyTenantClients(ref.tenantId, "UPDATE", `New deliverable available: ${d?.title ?? "deliverable"}`).catch(() => {});
+    }
+    return NextResponse.json({ ok: true, approvalStatus: status, released: targetType === "DELIVERABLE" });
   }
 
   if (action === "REQUEST_APPROVAL") {

@@ -1,10 +1,14 @@
 import { notFound } from "next/navigation";
+import { prisma } from "@/lib/db";
 import { getEngagementDetail } from "@/server/data";
 import {
   advanceMilestone,
   setEngagementStatus,
   generateEngagementPlanAction,
   draftDeliverableAction,
+  generateProposalAction,
+  sendProposalAction,
+  releaseContractAction,
 } from "@/server/actions";
 import {
   addMilestone,
@@ -69,6 +73,13 @@ export default async function EngagementDetail({ params }: { params: Promise<{ i
 
   const planExists = e.milestones.some((m) => m.source === "BRAIN");
   const phaseTitle = new Map(e.milestones.map((m) => [m.id, m.title]));
+  const envelopes = await prisma.envelope.findMany({
+    where: { engagementId: id, docType: "AGREEMENT" },
+    orderBy: { createdAt: "desc" },
+  });
+  const acceptLink = e.proposal?.acceptToken
+    ? `${(process.env.NEXT_PUBLIC_APP_URL || "https://www.pgco.world").replace(/\/$/, "")}/p/${e.proposal.acceptToken}`
+    : null;
 
   return (
     <div className="space-y-6">
@@ -104,6 +115,78 @@ export default async function EngagementDetail({ params }: { params: Promise<{ i
         <Stat label="Start" value={shortDate(e.startDate)} />
         <Stat label="Target end" value={shortDate(e.targetEndDate)} />
       </div>
+
+      {/* ── Proposal (acquisition funnel) — generate, review, send ── */}
+      {e.proposal ? (
+        <Card>
+          <CardHeader title="Proposal" />
+          <div className="space-y-3 p-5">
+            <div className="flex flex-wrap items-center gap-2 text-sm">
+              <Badge>{e.proposal.status}</Badge>
+              <span className="text-slate-500">{money(e.proposal.amountMinor, e.proposal.currency)}</span>
+              <span className="text-slate-400">· {e.proposal.bodyMd ? `${e.proposal.bodyMd.length} chars` : "not drafted yet"}</span>
+            </div>
+            {e.proposal.bodyMd ? (
+              <details className="rounded-lg border border-slate-200">
+                <summary className="cursor-pointer px-3 py-2 text-sm font-medium text-[var(--color-brand)]">Preview proposal</summary>
+                <pre className="max-h-72 overflow-auto whitespace-pre-wrap p-3 text-xs text-slate-700">{e.proposal.bodyMd}</pre>
+              </details>
+            ) : null}
+            <div className="flex flex-wrap items-center gap-2">
+              <form action={generateProposalAction}>
+                <input type="hidden" name="engagementId" value={e.id} />
+                <button className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50">
+                  {e.proposal.bodyMd ? "Re-draft with bRRAIn" : "Draft with bRRAIn"}
+                </button>
+              </form>
+              <form action={sendProposalAction}>
+                <input type="hidden" name="proposalId" value={e.proposal.id} />
+                <input type="hidden" name="engagementId" value={e.id} />
+                <button
+                  disabled={!e.proposal.bodyMd}
+                  className="rounded-lg bg-[var(--color-brand)] px-3 py-1.5 text-sm font-medium text-white hover:opacity-90 disabled:opacity-40"
+                >
+                  {e.proposal.status === "SENT" ? "Re-send proposal" : "Send proposal →"}
+                </button>
+              </form>
+            </div>
+            {acceptLink ? (
+              <p className="break-all text-xs text-slate-500">
+                Public accept link: <a href={acceptLink} className="text-[var(--color-brand)] hover:underline">{acceptLink}</a>
+              </p>
+            ) : null}
+          </div>
+        </Card>
+      ) : null}
+
+      {/* ── Engagement agreement (contract) — review + release for signature ── */}
+      {envelopes.length > 0 ? (
+        <Card>
+          <CardHeader title="Engagement agreement" />
+          <ul className="divide-y divide-slate-100">
+            {envelopes.map((env) => (
+              <li key={env.id} className="flex flex-wrap items-center justify-between gap-3 px-5 py-3">
+                <div className="text-sm">
+                  <div className="font-medium text-slate-800">{env.title}</div>
+                  <div className="text-xs text-slate-500">Signer: {env.signerName} · {env.signerEmail || "—"}</div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Badge>{env.status}</Badge>
+                  {env.status === "DRAFT" ? (
+                    <form action={releaseContractAction}>
+                      <input type="hidden" name="envelopeId" value={env.id} />
+                      <input type="hidden" name="engagementId" value={e.id} />
+                      <button className="rounded-lg bg-[var(--color-brand)] px-3 py-1.5 text-sm font-medium text-white hover:opacity-90">
+                        Release for signature →
+                      </button>
+                    </form>
+                  ) : null}
+                </div>
+              </li>
+            ))}
+          </ul>
+        </Card>
+      ) : null}
 
       {/* ── Generate the delivery plan with bRRAIn (P3) ── */}
       <Card>

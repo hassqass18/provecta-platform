@@ -5,6 +5,7 @@ import { ENGAGEMENT_STATUS, toneFor, money, shortDate } from "@/lib/types";
 import { NewForm, AINPUT, ALABEL, ABTN } from "@/components/admin-form";
 import { FilterBar } from "@/components/filter-bar";
 import { createEngagement } from "@/server/crud";
+import { createProspectAction } from "@/server/actions";
 
 export default async function EngagementsPage({ searchParams }: { searchParams: Promise<{ q?: string; status?: string }> }) {
   const sp = await searchParams;
@@ -69,6 +70,36 @@ export default async function EngagementsPage({ searchParams }: { searchParams: 
             </div>
             <div className="sm:col-span-2">
               <button className={ABTN}>Create engagement</button>
+            </div>
+          </form>
+        </NewForm>
+        <NewForm label="Start a prospect (acquisition funnel)">
+          <form action={createProspectAction} className="grid gap-3 sm:grid-cols-2">
+            <div>
+              <label className={ALABEL}>Company *</label>
+              <input name="company" required className={AINPUT} placeholder="Acme Robotics" />
+            </div>
+            <div>
+              <label className={ALABEL}>Contact email * (becomes their main channel)</label>
+              <input name="contactEmail" type="email" required className={AINPUT} placeholder="dana@acme.com" />
+            </div>
+            <div>
+              <label className={ALABEL}>Contact name</label>
+              <input name="contactName" className={AINPUT} placeholder="Dana Ng" />
+            </div>
+            <div>
+              <label className={ALABEL}>Website / domain</label>
+              <input name="domain" className={AINPUT} placeholder="acme.com" />
+            </div>
+            <div className="sm:col-span-2">
+              <label className={ALABEL}>Discovery transcript / notes</label>
+              <textarea name="transcript" className={`${AINPUT} h-24`} placeholder="What they told us — goals, pain points, constraints…" />
+            </div>
+            <div className="sm:col-span-2">
+              <button className={ABTN}>Start prospect → research + proposal</button>
+              <p className="mt-1.5 text-xs text-slate-500">
+                bRRAIn researches the prospect, then drafts the proposal — both land here for your review. Drained by the agent tick.
+              </p>
             </div>
           </form>
         </NewForm>

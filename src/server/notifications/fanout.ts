@@ -2,7 +2,18 @@ import { prisma } from "@/lib/db";
 import { assertBacked } from "@/lib/comms/honesty";
 import type { ClaimKind, Backing } from "@/lib/comms/honesty";
 import { sendComm } from "../comms/send";
+import { sendOnChannel } from "../comms/transport";
 import { sendPushToUsers } from "./push";
+
+// Deliver a client update on the tenant's CHOSEN channel (EMAIL via Resend,
+// WhatsApp, Slack, Telegram). Gated providers no-op. APP/PORTAL/OPEN deliver
+// in-app only (handled by the in-app notification + push elsewhere).
+async function deliverOnPreferredChannel(tenantId: string, body: string): Promise<void> {
+  const tenant = await prisma.tenant.findUnique({ where: { id: tenantId }, select: { preferredChannel: true, channelAddress: true } });
+  const channel = tenant?.preferredChannel?.toUpperCase();
+  if (!channel || !tenant?.channelAddress || ["APP", "PORTAL", "OPEN"].includes(channel)) return;
+  await sendOnChannel(channel, tenant.channelAddress, body).catch(() => {});
+}
 
 /**
  * Fan out an in-app Notification to every CLIENT user of a tenant.
@@ -32,6 +43,9 @@ export async function notifyTenantClients(
     clients.map((u) => u.id),
     { title: "Provecta", body, data: { screen } },
   );
+
+  // Also deliver on the client's chosen external channel (email/WhatsApp/…).
+  await deliverOnPreferredChannel(tenantId, body);
 }
 
 /**
