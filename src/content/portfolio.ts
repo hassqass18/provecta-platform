@@ -136,10 +136,10 @@ export const CASE_STUDIES: CaseStudy[] = [
     sector: "PropTech · Marketplace",
     location: "Kenya · 47 counties",
     year: "2026",
-    accent: "#0a7d4d",
+    accent: "#c82021",
     liveUrl: "https://karibuhome.world",
-    hero: "/portfolio/karibu/hero.jpg",
-    gallery: ["/portfolio/karibu/g1.jpg", "/portfolio/karibu/g2.jpg"],
+    hero: "/portfolio/karibu/hero.png",
+    gallery: ["/portfolio/karibu/g1.png", "/portfolio/karibu/g2.png"],
     tagline: "A diaspora-first real-estate platform with an AI brain that answers “is this price fair?” — with sources.",
     summary:
       "Kenyan diaspora buyers pay the “Mzungu tax” on portals built for foreign wallets. Karibu is a nationwide marketplace with honest pricing, a native CRM and a citation-gated AI brain — live in production.",
