@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { prisma } from "@/lib/db";
 import { MarketingShell } from "@/components/marketing-shell";
 import { ResourceLibrary, type Resource } from "@/components/resource-library";
+import { CASE_STUDIES } from "@/content/portfolio";
 
 export const metadata: Metadata = {
   title: "Provecta Group — The business operations toolkit, and the firm that runs it",
@@ -173,6 +174,32 @@ export default async function Landing() {
           <Link href="/portfolio" className="btn btn-outline-dark" style={{ border: "1px solid var(--link-blue)", color: "var(--link-blue)" }}>
             See our work
           </Link>
+        </div>
+      </section>
+
+      {/* 4b — Selected Work (dark) */}
+      <section id="work" className="section-dark" style={SECTION}>
+        <div className="pgcontainer">
+          <div style={{ textAlign: "center", maxWidth: 660, margin: "0 auto 3rem" }}>
+            <p className="eyebrow" style={{ color: "var(--bright-blue)" }}>Selected work</p>
+            <h2 className="pg" style={{ margin: "0.75rem 0", color: "#fff" }}>Operating systems we built — then ran.</h2>
+            <p style={{ color: "var(--text-white-secondary)" }}>
+              From the platform we run our own firm on, to go-to-market engines and AI-native intelligence products.
+            </p>
+          </div>
+          <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+            {CASE_STUDIES.map((c) => (
+              <Link key={c.slug} href={`/portfolio/${c.slug}`} className="darkcard" style={{ borderRadius: 18, borderTop: `3px solid ${c.accent}`, textDecoration: "none", display: "block" }}>
+                <div style={{ fontSize: "0.68rem", textTransform: "uppercase", letterSpacing: "0.05em", color: "rgba(255,255,255,0.45)" }}>{c.sector}</div>
+                <h3 style={{ fontSize: "1.2rem", fontWeight: 600, margin: "0.4rem 0", color: "#fff" }}>{c.name}</h3>
+                <p style={{ color: "rgba(255,255,255,0.6)", fontSize: "0.9rem", lineHeight: 1.5 }}>{c.summary}</p>
+                <div style={{ marginTop: "0.9rem", color: "var(--bright-blue)", fontWeight: 600, fontSize: "0.85rem" }}>Read the case study →</div>
+              </Link>
+            ))}
+          </div>
+          <div style={{ textAlign: "center", marginTop: "2.5rem" }}>
+            <Link href="/portfolio" className="btn btn-primary">See all our work</Link>
+          </div>
         </div>
       </section>
 
