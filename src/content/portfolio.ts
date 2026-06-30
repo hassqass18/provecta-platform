@@ -67,9 +67,9 @@ export const CASE_STUDIES: CaseStudy[] = [
     location: "Nyali, Mombasa, Kenya",
     year: "2026",
     accent: "#1d235c",
-    liveUrl: "https://www.pgco.world/portfolio/grand-malibu",
-    hero: "/portfolio/grand-malibu/hero.jpg",
-    gallery: ["/portfolio/grand-malibu/g1.jpg", "/portfolio/grand-malibu/g2.jpg", "/portfolio/grand-malibu/g3.jpg"],
+    liveUrl: "https://sierrausahomes.com",
+    hero: "/portfolio/grand-malibu/hero.png",
+    gallery: ["/portfolio/grand-malibu/g1.png", "/portfolio/grand-malibu/g2.png"],
     tagline: "From zero brand to a full go-to-market system for an 88-unit coastal development — in six weeks.",
     summary:
       "An 88-unit, 3-tower premium development needed 20+ reservations before permit. We built the entire go-to-market engine — brand, assets, CRM, multi-channel campaign, diaspora affiliate network and bank financing materials.",
