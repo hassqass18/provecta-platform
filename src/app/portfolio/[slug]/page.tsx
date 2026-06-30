@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { MarketingShell } from "@/components/marketing-shell";
@@ -56,6 +57,13 @@ export default async function CaseStudyPage({ params }: { params: Promise<{ slug
         </div>
       </section>
 
+      {/* Hero image band */}
+      {c.hero ? (
+        <div style={{ position: "relative", width: "100%", aspectRatio: "21/9", maxHeight: 560, background: "#000" }}>
+          <Image src={c.hero} alt={c.name} fill priority sizes="100vw" style={{ objectFit: "cover" }} />
+        </div>
+      ) : null}
+
       {/* The challenge (light) */}
       <section className="section-light" style={SECTION}>
         <div className="pgcontainer" style={{ maxWidth: 820 }}>
@@ -91,6 +99,21 @@ export default async function CaseStudyPage({ params }: { params: Promise<{ slug
           </div>
         </div>
       </section>
+
+      {/* Gallery */}
+      {c.gallery && c.gallery.length > 0 ? (
+        <section className="section-light" style={{ paddingBottom: "clamp(2.5rem,5vw,4rem)" }}>
+          <div className="pgcontainer">
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {c.gallery.map((src, i) => (
+                <div key={i} style={{ position: "relative", width: "100%", aspectRatio: "4/3", borderRadius: 14, overflow: "hidden", background: "#0a0a0a" }}>
+                  <Image src={src} alt={`${c.name} — ${i + 1}`} fill sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw" style={{ objectFit: "cover" }} />
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+      ) : null}
 
       {/* Results (dark) */}
       <section className="section-dark" style={SECTION}>

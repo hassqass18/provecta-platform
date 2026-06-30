@@ -14,6 +14,8 @@ export type CaseStudy = {
   summary: string; // one/two-line card blurb
   liveUrl?: string;
   featured?: boolean;
+  hero?: string; // hero image path under /public; platform uses a gradient instead
+  gallery?: string[]; // additional images for the detail page
   stats: Stat[]; // 3 headline numbers
   challenge: string;
   built: string[]; // what Provecta delivered
@@ -66,6 +68,8 @@ export const CASE_STUDIES: CaseStudy[] = [
     year: "2026",
     accent: "#1d235c",
     liveUrl: "https://www.pgco.world/portfolio/grand-malibu",
+    hero: "/portfolio/grand-malibu/hero.jpg",
+    gallery: ["/portfolio/grand-malibu/g1.jpg", "/portfolio/grand-malibu/g2.jpg", "/portfolio/grand-malibu/g3.jpg"],
     tagline: "From zero brand to a full go-to-market system for an 88-unit coastal development — in six weeks.",
     summary:
       "An 88-unit, 3-tower premium development needed 20+ reservations before permit. We built the entire go-to-market engine — brand, assets, CRM, multi-channel campaign, diaspora affiliate network and bank financing materials.",
@@ -99,6 +103,8 @@ export const CASE_STUDIES: CaseStudy[] = [
     year: "2026",
     accent: "#b87333",
     liveUrl: "https://msifs.com",
+    hero: "/portfolio/msifs/hero.jpg",
+    gallery: ["/portfolio/msifs/g1.jpg", "/portfolio/msifs/g2.jpg", "/portfolio/msifs/g3.jpg"],
     tagline: "A public site, a gated investor portal and an AI deal-vetting engine for a $200M frontier-impact fund.",
     summary:
       "A newly-formed $200M critical-minerals & infrastructure fund needed institutional credibility fast. We built msifs.com, a security-hardened investor portal, and a Claude-powered intelligence and deal-vetting platform.",
@@ -132,6 +138,8 @@ export const CASE_STUDIES: CaseStudy[] = [
     year: "2026",
     accent: "#0a7d4d",
     liveUrl: "https://karibuhome.world",
+    hero: "/portfolio/karibu/hero.jpg",
+    gallery: ["/portfolio/karibu/g1.jpg", "/portfolio/karibu/g2.jpg"],
     tagline: "A diaspora-first real-estate platform with an AI brain that answers “is this price fair?” — with sources.",
     summary:
       "Kenyan diaspora buyers pay the “Mzungu tax” on portals built for foreign wallets. Karibu is a nationwide marketplace with honest pricing, a native CRM and a citation-gated AI brain — live in production.",
@@ -163,6 +171,8 @@ export const CASE_STUDIES: CaseStudy[] = [
     location: "Africa + Central Asia · 63 countries",
     year: "2026",
     accent: "#2c7a7b",
+    hero: "/portfolio/frontier-atlas/hero.jpg",
+    gallery: ["/portfolio/frontier-atlas/g1.jpg", "/portfolio/frontier-atlas/g2.jpg", "/portfolio/frontier-atlas/g3.png"],
     tagline: "The citation-gated intelligence layer — and investability index — for the next era of frontier capital.",
     summary:
       "Allocators piece frontier-market decisions together from $50K terminals and hundreds of uncatalogued sources. Frontier Atlas is an AI-native, citation-gated intelligence platform over 800+ vetted sources across 63 countries.",
