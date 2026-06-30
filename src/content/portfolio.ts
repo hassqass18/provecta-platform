@@ -171,8 +171,9 @@ export const CASE_STUDIES: CaseStudy[] = [
     location: "Africa + Central Asia · 63 countries",
     year: "2026",
     accent: "#e68250",
-    hero: "/portfolio/frontier-atlas/hero.jpg",
-    gallery: ["/portfolio/frontier-atlas/g1.jpg", "/portfolio/frontier-atlas/g2.jpg", "/portfolio/frontier-atlas/g3.png"],
+    liveUrl: "https://frontier-atlas-pi.vercel.app",
+    hero: "/portfolio/frontier-atlas/hero.png",
+    gallery: ["/portfolio/frontier-atlas/g1.png", "/portfolio/frontier-atlas/g2.png"],
     tagline: "The citation-gated intelligence layer — and investability index — for the next era of frontier capital.",
     summary:
       "Allocators piece frontier-market decisions together from $50K terminals and hundreds of uncatalogued sources. Frontier Atlas is an AI-native, citation-gated intelligence platform over 800+ vetted sources across 63 countries.",
