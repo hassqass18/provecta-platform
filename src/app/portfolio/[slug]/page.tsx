@@ -39,10 +39,10 @@ export default async function CaseStudyPage({ params }: { params: Promise<{ slug
           <p style={{ color: "var(--text-white-secondary)", fontSize: "1.25rem", maxWidth: 700 }}>{c.tagline}</p>
           <p style={{ color: "rgba(255,255,255,0.5)", fontSize: "0.85rem", marginTop: "0.75rem" }}>Client: {c.client}</p>
 
-          <div style={{ display: "flex", gap: "2.5rem", flexWrap: "wrap", marginTop: "2.25rem" }}>
+          <div style={{ display: "flex", gap: "clamp(1.25rem, 5vw, 2.5rem)", flexWrap: "wrap", marginTop: "2.25rem" }}>
             {c.stats.map((s) => (
-              <div key={s.label}>
-                <div style={{ fontSize: "2.4rem", fontWeight: 600, color: "#fff", lineHeight: 1.05 }}>
+              <div key={s.label} style={{ minWidth: 0 }}>
+                <div style={{ fontSize: "clamp(1.6rem, 6vw, 2.4rem)", fontWeight: 600, color: "#fff", lineHeight: 1.05 }}>
                   <span style={{ color: c.accent }}>{s.value}</span>
                 </div>
                 <div style={{ fontSize: "0.78rem", color: "rgba(255,255,255,0.6)", maxWidth: 170, marginTop: "0.25rem" }}>{s.label}</div>

@@ -12,7 +12,21 @@ export const metadata: Metadata = {
 
 const SECTION: React.CSSProperties = { padding: "clamp(3.5rem, 7vw, 6rem) 0" };
 
-function StatRow({ stats, dark }: { stats: CaseStudy["stats"]; dark?: boolean }) {
+function StatRow({ stats, dark, compact }: { stats: CaseStudy["stats"]; dark?: boolean; compact?: boolean }) {
+  // compact = fixed 3-up grid used on preview cards: the three stats always sit
+  // on one row and each value stays on a single line (shrinks on narrow cards).
+  if (compact) {
+    return (
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: "0.6rem", marginTop: "1.1rem" }}>
+        {stats.map((s) => (
+          <div key={s.label} style={{ minWidth: 0 }}>
+            <div style={{ fontSize: "clamp(1rem, 3vw, 1.2rem)", fontWeight: 600, color: dark ? "#fff" : "#1d1d1f", lineHeight: 1.1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{s.value}</div>
+            <div style={{ fontSize: "0.66rem", lineHeight: 1.3, marginTop: "0.2rem", color: dark ? "rgba(255,255,255,0.55)" : "var(--text-secondary)" }}>{s.label}</div>
+          </div>
+        ))}
+      </div>
+    );
+  }
   return (
     <div style={{ display: "flex", gap: "1.75rem", flexWrap: "wrap", marginTop: "1.25rem" }}>
       {stats.map((s) => (
@@ -69,22 +83,22 @@ export default function Portfolio() {
         <div className="pgcontainer">
           <div className="grid gap-6 md:grid-cols-2">
             {rest.map((c) => (
-              <Link key={c.slug} href={`/portfolio/${c.slug}`} style={{ textDecoration: "none" }}>
-                <div className="rounded-2xl border border-slate-200 bg-white h-full overflow-hidden" style={{ borderTop: `3px solid ${c.accent}` }}>
+              <Link key={c.slug} href={`/portfolio/${c.slug}`} style={{ textDecoration: "none", display: "flex" }}>
+                <div className="rounded-2xl border border-slate-200 bg-white overflow-hidden" style={{ borderTop: `3px solid ${c.accent}`, display: "flex", flexDirection: "column", width: "100%" }}>
                   {c.hero ? (
-                    <div style={{ position: "relative", width: "100%", aspectRatio: "16/9", background: "#0a0a0a" }}>
+                    <div style={{ position: "relative", width: "100%", aspectRatio: "16/9", background: "#0a0a0a", flexShrink: 0 }}>
                       <Image src={c.hero} alt={c.name} fill sizes="(max-width: 768px) 100vw, 50vw" style={{ objectFit: "cover" }} />
                     </div>
                   ) : null}
-                  <div className="p-7">
+                  <div style={{ display: "flex", flexDirection: "column", flex: 1, padding: "clamp(1.25rem, 4vw, 1.75rem)" }}>
                     <div style={{ fontSize: "0.7rem", textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--text-secondary)" }}>
                       {c.sector} · {c.location} · {c.year}
                     </div>
                     <h3 style={{ fontSize: "1.45rem", fontWeight: 600, color: "#1d1d1f", margin: "0.5rem 0 0.25rem" }}>{c.name}</h3>
                     <p style={{ color: "#1d1d1f", opacity: 0.55, fontSize: "0.82rem", marginBottom: "0.75rem" }}>{c.client}</p>
-                    <p style={{ color: "var(--text-secondary)", fontSize: "0.97rem", lineHeight: 1.55 }}>{c.summary}</p>
-                    <StatRow stats={c.stats} />
-                    <div style={{ marginTop: "1.5rem", color: "var(--link-blue)", fontWeight: 600, fontSize: "0.95rem" }}>Read the case study →</div>
+                    <p style={{ color: "var(--text-secondary)", fontSize: "0.97rem", lineHeight: 1.55, display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{c.summary}</p>
+                    <StatRow stats={c.stats} compact />
+                    <div style={{ marginTop: "auto", paddingTop: "1.5rem", color: "var(--link-blue)", fontWeight: 600, fontSize: "0.95rem" }}>Read the case study →</div>
                   </div>
                 </div>
               </Link>

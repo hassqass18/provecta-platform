@@ -190,21 +190,21 @@ export default async function Landing() {
           </div>
           <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
             {CASE_STUDIES.map((c) => (
-              <Link key={c.slug} href={`/portfolio/${c.slug}`} style={{ textDecoration: "none", display: "block", borderRadius: 18, overflow: "hidden", border: "1px solid rgba(255,255,255,0.1)", borderTop: `3px solid ${c.accent}`, background: "var(--dark-surface)" }}>
+              <Link key={c.slug} href={`/portfolio/${c.slug}`} style={{ textDecoration: "none", display: "flex", flexDirection: "column", borderRadius: 18, overflow: "hidden", border: "1px solid rgba(255,255,255,0.1)", borderTop: `3px solid ${c.accent}`, background: "var(--dark-surface)" }}>
                 {c.hero ? (
-                  <div style={{ position: "relative", width: "100%", aspectRatio: "16/9", background: "#000" }}>
+                  <div style={{ position: "relative", width: "100%", aspectRatio: "16/9", background: "#000", flexShrink: 0 }}>
                     <Image src={c.hero} alt={c.name} fill sizes="(max-width: 768px) 100vw, 33vw" style={{ objectFit: "cover" }} />
                   </div>
                 ) : (
-                  <div style={{ width: "100%", aspectRatio: "16/9", background: "linear-gradient(135deg, #0a1e3f, #06122a)", display: "flex", alignItems: "center", justifyContent: "center", color: "rgba(255,255,255,0.85)", fontWeight: 700, fontSize: "1.6rem", letterSpacing: "-0.02em" }}>
+                  <div style={{ width: "100%", aspectRatio: "16/9", background: "linear-gradient(135deg, #0a1e3f, #06122a)", display: "flex", alignItems: "center", justifyContent: "center", color: "rgba(255,255,255,0.85)", fontWeight: 700, fontSize: "1.6rem", letterSpacing: "-0.02em", flexShrink: 0 }}>
                     Built on bRRAIn
                   </div>
                 )}
-                <div style={{ padding: "1.25rem 1.4rem 1.5rem" }}>
+                <div style={{ display: "flex", flexDirection: "column", flex: 1, padding: "1.25rem 1.4rem 1.5rem" }}>
                   <div style={{ fontSize: "0.68rem", textTransform: "uppercase", letterSpacing: "0.05em", color: "rgba(255,255,255,0.45)" }}>{c.sector}</div>
                   <h3 style={{ fontSize: "1.2rem", fontWeight: 600, margin: "0.4rem 0", color: "#fff" }}>{c.name}</h3>
-                  <p style={{ color: "rgba(255,255,255,0.6)", fontSize: "0.9rem", lineHeight: 1.5 }}>{c.summary}</p>
-                  <div style={{ marginTop: "0.9rem", color: "var(--bright-blue)", fontWeight: 600, fontSize: "0.85rem" }}>Read the case study →</div>
+                  <p style={{ color: "rgba(255,255,255,0.6)", fontSize: "0.9rem", lineHeight: 1.5, display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{c.summary}</p>
+                  <div style={{ marginTop: "auto", paddingTop: "0.9rem", color: "var(--bright-blue)", fontWeight: 600, fontSize: "0.85rem" }}>Read the case study →</div>
                 </div>
               </Link>
             ))}
